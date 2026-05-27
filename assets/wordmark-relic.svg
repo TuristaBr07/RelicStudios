@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 110" fill="none">
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FBEFC9"></stop>
+      <stop offset="35%" stop-color="#F2C95B"></stop>
+      <stop offset="65%" stop-color="#E8B028"></stop>
+      <stop offset="100%" stop-color="#8C5E08"></stop>
+    </linearGradient>
+    <linearGradient id="goldShade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5A3B04"></stop>
+      <stop offset="100%" stop-color="#15110C"></stop>
+    </linearGradient>
+  </defs>
+
+  
+  <text x="180" y="78" text-anchor="middle" font-family="Bebas Neue, Impact, sans-serif" font-size="86" letter-spacing="6" fill="url(#goldShade)">RELIC</text>
+  
+  <text x="180" y="75" text-anchor="middle" font-family="Bebas Neue, Impact, sans-serif" font-size="86" letter-spacing="6" fill="url(#gold)">RELIC</text>
+  
+  <text x="180" y="100" text-anchor="middle" font-family="Space Grotesk, Inter, sans-serif" font-size="11" letter-spacing="6" fill="#DCC894">— STUDIOS —</text>
+</svg>

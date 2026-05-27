@@ -1,0 +1,184 @@
+@font-face {
+  font-family: "Bebas Neue";
+  src: url("fonts/BebasNeue-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Space Grotesk";
+  src: url("fonts/SpaceGrotesk-VariableFont_wght.ttf") format("truetype-variations");
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+@import url("https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap");
+
+:root {
+  --gold-50:   #FBEFC9;
+  --gold-100:  #F7DD8E;
+  --gold-200:  #F2C95B;
+  --gold-300:  #E8B028;
+  --gold-400:  #C68A14;
+  --gold-500:  #8C5E08;
+  --gold-600:  #5A3B04;
+
+  --ember-200: #FFB070;
+  --ember-300: #FF8C2A;
+  --ember-400: #E0531A;
+  --ember-500: #A23210;
+
+  --pewter-50:  #E6E9EF;
+  --pewter-100: #C1C8D4;
+  --pewter-200: #8E97A9;
+  --pewter-300: #5F6A7E;
+  --pewter-400: #3F4858;
+  --pewter-500: #262C38;
+
+  --vault-900: #0B0907;
+  --vault-800: #15110C;
+  --vault-700: #1F1812;
+  --vault-600: #2C2218;
+  --vault-500: #3A2C1F;
+
+  --wood-200: #8A5A33;
+  --wood-300: #6B3B1F;
+  --wood-400: #4A2812;
+  --wood-500: #2E1809;
+
+  --parch-50:  #FAF2DD;
+  --parch-100: #F0E2BB;
+  --parch-200: #DCC894;
+  --parch-300: #B89E60;
+
+  --status-success: #4AB037;
+  --status-warning: #E8B028;
+  --status-danger:  #C4321A;
+  --status-info:    #5E8FA8;
+
+  --bg:          var(--vault-700);
+  --bg-elevated: var(--vault-600);
+  --bg-sunken:   var(--vault-900);
+  --bg-card:     #221A12;
+  --bg-parchment: var(--parch-50);
+
+  --fg:        var(--parch-50);
+  --fg-muted:  var(--parch-200);
+  --fg-faint:  var(--pewter-200);
+  --fg-inverse: var(--vault-900);
+
+  --accent:        var(--gold-300);
+  --accent-hover:  var(--gold-200);
+  --accent-press:  var(--gold-400);
+  --accent-ink:    var(--vault-900);
+  --ember:         var(--ember-300);
+  --ember-hover:   var(--ember-200);
+
+  --line:         rgba(244, 233, 210, 0.12);
+  --line-strong:  rgba(244, 233, 210, 0.24);
+  --line-metal:   var(--pewter-300);
+  --line-gold:    var(--gold-400);
+
+  --focus-ring: 0 0 0 2px var(--vault-700), 0 0 0 4px var(--gold-300);
+  --selection-bg: var(--gold-300);
+  --selection-fg: var(--vault-900);
+
+  --font-display: "Bebas Neue", "Oswald", "Impact", sans-serif;
+  --font-stamp:   "Archivo Black", "Space Grotesk", system-ui, sans-serif;
+  --font-body:    "Space Grotesk", "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono:    "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  --fs-12: 12px;
+  --fs-14: 14px;
+  --fs-16: 16px;
+  --fs-18: 18px;
+  --fs-20: 20px;
+  --fs-24: 24px;
+  --fs-32: 32px;
+  --fs-40: 40px;
+  --fs-56: 56px;
+  --fs-80: 80px;
+  --fs-120: 120px;
+
+  --lh-tight: 0.95;
+  --lh-snug:  1.15;
+  --lh-body:  1.5;
+  --lh-loose: 1.7;
+
+  --tr-display: 0.04em;
+  --tr-eyebrow: 0.18em;
+  --tr-body:    0em;
+
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  24px;
+  --space-6:  32px;
+  --space-7:  48px;
+  --space-8:  64px;
+  --space-9:  96px;
+
+  --radius-0: 0px;
+  --radius-1: 2px;
+  --radius-2: 4px;
+  --radius-3: 6px;
+  --radius-4: 10px;
+  --radius-pill: 999px;
+
+  --shadow-1: 0 1px 0 rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.35);
+  --shadow-2: 0 2px 0 rgba(0,0,0,0.5), 0 8px 18px rgba(0,0,0,0.45);
+  --shadow-3: 0 4px 0 rgba(0,0,0,0.55), 0 18px 40px rgba(0,0,0,0.55);
+  --shadow-inset: inset 0 1px 0 rgba(255, 220, 140, 0.08),
+                  inset 0 -1px 0 rgba(0, 0, 0, 0.5);
+  --shadow-glow-gold:  0 0 0 1px var(--gold-400), 0 0 32px -4px rgba(232, 176, 40, 0.55);
+  --shadow-glow-ember: 0 0 24px -2px rgba(255, 140, 42, 0.65);
+
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.6, 0, 0.3, 1);
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 420ms;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: var(--fs-16);
+  line-height: var(--lh-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+body { overflow-y: scroll; }
+
+::selection { background: var(--selection-bg); color: var(--selection-fg); }
+
+h1 { font: 400 var(--fs-56)/var(--lh-snug) var(--font-display); letter-spacing: var(--tr-display); text-transform: uppercase; }
+h2 { font: 400 var(--fs-40)/var(--lh-snug) var(--font-display); letter-spacing: var(--tr-display); text-transform: uppercase; }
+h3 { font: 600 var(--fs-24)/var(--lh-snug) var(--font-body); }
+h4 { font: 600 var(--fs-18)/var(--lh-snug) var(--font-body); }
+p  { font: 400 var(--fs-16)/var(--lh-body) var(--font-body); color: var(--fg); }
+small { font-size: var(--fs-12); color: var(--fg-faint); }
+a {
+  color: var(--gold-200);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+a:hover { color: var(--gold-100); }
+
+.container {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 48px;
+  box-sizing: border-box;
+}
+.container--narrow {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 48px;
+}
+.app-shell { min-height: 100vh; }
