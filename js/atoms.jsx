@@ -219,9 +219,9 @@ function Silhouette({ seed = 0, glow = "rgba(232,176,40,0.25)" }) {
   return (
     <div style={{
       width: "55%", height: "78%",
-      background: "linear-gradient(180deg, #3A2C1F 0%, #15110C 100%)",
+      background: "linear-gradient(180deg, #6B4A30 0%, #3A2018 100%)",
       clipPath: shapes[seed % shapes.length],
-      boxShadow: `0 0 32px ${glow}`,
+      boxShadow: `0 0 40px ${glow}`,
     }}/>
   );
 }
@@ -231,13 +231,13 @@ function ProductStage({ children, image, glow = "rgba(232,176,40,0.18)" }) {
     <div style={{
       width: "100%", aspectRatio: "1",
       borderRadius: 4,
-      background: image ? "#0E1219" : `
+      background: image ? "#0B0907" : `
         radial-gradient(ellipse at 50% 30%, rgba(255,176,112,0.28), transparent 65%),
         radial-gradient(ellipse at 50% 50%, ${glow}, transparent 70%),
-        linear-gradient(180deg, #2A323F 0%, #0E1219 100%)
+        linear-gradient(180deg, #2A2018 0%, #0E0B07 100%)
       `,
       display: "flex", alignItems: "center", justifyContent: "center",
-      border: "1px solid var(--pewter-400)",
+      border: "1px solid rgba(232,176,40,0.18)",
       position: "relative", overflow: "hidden",
     }}>
       {image ? (

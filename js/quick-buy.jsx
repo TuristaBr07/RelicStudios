@@ -52,13 +52,13 @@ function QuickBuyModal({ open, product, onClose, onAdd }) {
           <div style={{
             display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
             fontFamily: "var(--font-mono)", fontSize: 10,
-            color: "var(--fg-faint)", letterSpacing: "0.08em", textTransform: "uppercase",
+            color: "var(--parch-300)", letterSpacing: "0.08em", textTransform: "uppercase",
             marginBottom: 8,
           }}>
             <span>{product.franchise}</span>
             <span style={{
               background: "var(--vault-900)", color: "var(--gold-200)",
-              border: "1px solid var(--line-strong)",
+              border: "1px solid var(--gold-500)",
               padding: "2px 7px", borderRadius: 2,
             }}>{product.scale}</span>
             <span>SKU {product.sku}</span>
@@ -119,7 +119,7 @@ function QuickBuyModal({ open, product, onClose, onAdd }) {
               fontFamily: '"Bebas Neue", Impact, sans-serif',
               letterSpacing: "0.03em", fontSize: 44, color: "var(--gold-200)", lineHeight: 1,
             }}>{brl(product.price)}</div>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--fg-faint)" }}>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--parch-300)" }}>
               12× {brl(product.price / 12)} sem juros
             </div>
           </div>

@@ -40,9 +40,9 @@ function ProductPage({ product, onBack, onAdd }) {
               {[0,1,2,3].map(i => (
                 <div key={i} style={{
                   aspectRatio: "1", borderRadius: 4,
-                  border: i === 0 ? "1px solid var(--gold-300)" : "1px solid var(--line)",
+                  border: i === 0 ? "1px solid var(--gold-300)" : "1px solid rgba(232,176,40,0.25)",
                   background: "linear-gradient(180deg, #2C2218 0%, #0B0907 100%)",
-                  opacity: i === 0 ? 1 : 0.5,
+                  opacity: i === 0 ? 1 : 0.7,
                 }}/>
               ))}
             </div>
@@ -52,7 +52,7 @@ function ProductPage({ product, onBack, onAdd }) {
           <div>
             <div style={{
               fontFamily: "var(--font-mono)", fontSize: 11,
-              color: "var(--fg-faint)", letterSpacing: "0.08em", textTransform: "uppercase",
+              color: "var(--parch-300)", letterSpacing: "0.08em", textTransform: "uppercase",
               marginBottom: 8,
             }}>{product.franchise} · SKU {product.sku}</div>
             <h1 style={{
@@ -72,7 +72,7 @@ function ProductPage({ product, onBack, onAdd }) {
                 <span style={{
                   fontFamily: "var(--font-mono)", fontSize: 10,
                   background: "var(--vault-900)", color: "var(--gold-200)",
-                  border: "1px solid var(--line-strong)",
+                  border: "1px solid var(--gold-500)",
                   padding: "4px 8px", borderRadius: 2, letterSpacing: "0.04em",
                 }}>EDIÇÃO {String(product.editionNumber).padStart(3, "0")} / {product.editionOf}</span>
               )}
@@ -91,7 +91,7 @@ function ProductPage({ product, onBack, onAdd }) {
                   fontFamily: '"Bebas Neue", Impact, sans-serif',
                   letterSpacing: "0.03em", fontSize: 56, color: "var(--gold-200)", lineHeight: 1,
                 }}>{brl(product.price)}</div>
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--fg-faint)" }}>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--parch-300)" }}>
                   ou 12× {brl(product.price / 12)} sem juros
                 </div>
               </div>

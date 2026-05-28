@@ -8,16 +8,16 @@ function ProductCard({ product, onOpen, onAdd, onQuickView }) {
              onMouseEnter={() => setHover(true)}
              onMouseLeave={() => setHover(false)}
              style={{
-      background: "linear-gradient(180deg, #232A35 0%, #1A1F28 100%)",
-      border: `1px solid ${featured ? "var(--gold-400)" : (hover ? "var(--pewter-300)" : "var(--pewter-400)")}`,
+      background: "linear-gradient(180deg, #2A2018 0%, #1A140E 100%)",
+      border: `1px solid ${featured ? "var(--gold-400)" : (hover ? "var(--gold-400)" : "rgba(232,176,40,0.20)")}`,
       borderRadius: 6,
       padding: 14,
       display: "flex", flexDirection: "column", gap: 12,
       boxShadow: featured
-        ? "0 0 0 1px var(--gold-400), 0 0 36px -8px rgba(232,176,40,0.55), var(--shadow-1), inset 0 1px 0 rgba(193,200,212,0.08)"
+        ? "0 0 0 1px var(--gold-400), 0 0 36px -8px rgba(232,176,40,0.55), var(--shadow-1), inset 0 1px 0 rgba(255,220,140,0.08)"
         : (hover
-            ? "var(--shadow-2), inset 0 1px 0 rgba(193,200,212,0.1)"
-            : "var(--shadow-1), inset 0 1px 0 rgba(193,200,212,0.06)"),
+            ? "var(--shadow-2), inset 0 1px 0 rgba(255,220,140,0.08), 0 0 24px -8px rgba(232,176,40,0.25)"
+            : "var(--shadow-1), inset 0 1px 0 rgba(255,220,140,0.04)"),
       position: "relative",
       cursor: "pointer",
       transition: "all 200ms cubic-bezier(0.2, 0.7, 0.2, 1)",
@@ -65,14 +65,14 @@ function ProductCard({ product, onOpen, onAdd, onQuickView }) {
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
         fontFamily: "var(--font-mono)", fontSize: 10,
-        color: "var(--fg-faint)", letterSpacing: "0.08em", textTransform: "uppercase",
+        color: "var(--parch-300)", letterSpacing: "0.08em", textTransform: "uppercase",
       }}>
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{product.franchise}</span>
         <span style={{
           flexShrink: 0,
           background: "var(--vault-900)",
           color: "var(--gold-200)",
-          border: "1px solid var(--line-strong)",
+          border: "1px solid var(--gold-500)",
           padding: "2px 7px",
           borderRadius: 2,
         }}>{product.scale}</span>
@@ -87,7 +87,7 @@ function ProductCard({ product, onOpen, onAdd, onQuickView }) {
             fontFamily: '"Bebas Neue", Impact, sans-serif',
             letterSpacing: "0.04em", fontSize: 28, color: "var(--gold-200)", lineHeight: 1,
           }}>{brl(product.price)}</div>
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--fg-faint)", marginTop: 2 }}>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--parch-300)", marginTop: 2 }}>
             12× {brl(product.price / 12)}
           </div>
         </div>
@@ -157,7 +157,7 @@ function Filters({ value, onChange }) {
                   }}>
                     <span style={{
                       width: 16, height: 16, borderRadius: 2,
-                      border: `1px solid ${checked ? "var(--gold-400)" : "var(--line-strong)"}`,
+                      border: `1px solid ${checked ? "var(--gold-400)" : "rgba(244,233,210,0.45)"}`,
                       background: checked ? "var(--gold-300)" : "var(--vault-900)",
                       display: "inline-flex", alignItems: "center", justifyContent: "center",
                       flexShrink: 0,
@@ -246,7 +246,7 @@ function SortBar({ count, sort, onSort }) {
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <span style={{
           fontFamily: "var(--font-body)", fontSize: 11, fontWeight: 600,
-          letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--fg-faint)",
+          letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--parch-300)",
         }}>ORDENAR</span>
         <select value={sort} onChange={e => onSort(e.target.value)} style={{
           background: "var(--vault-900)",

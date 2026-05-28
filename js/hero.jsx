@@ -176,7 +176,7 @@ function CategoryStrip({ onPick }) {
               position: "relative",
               cursor: "pointer",
               background: "var(--bg-elevated)",
-              border: `1px solid ${c.hot ? "var(--gold-400)" : "var(--line)"}`,
+              border: `1px solid ${c.hot ? "var(--gold-400)" : "rgba(244,233,210,0.35)"}`,
               borderRadius: 6,
               padding: "28px 20px",
               display: "flex", alignItems: "center", gap: 16,
@@ -186,8 +186,8 @@ function CategoryStrip({ onPick }) {
             }}>
               <div style={{
                 width: 56, height: 56, borderRadius: 4,
-                background: "var(--vault-900)",
-                border: `1px solid ${c.hot ? "var(--gold-400)" : "var(--line-strong)"}`,
+                background: "var(--vault-600)",
+                border: `1px solid ${c.hot ? "var(--gold-400)" : "rgba(244,233,210,0.45)"}`,
                 display: "flex", alignItems: "center", justifyContent: "center",
               }}>
                 <img src={`assets/icons/${c.glyph}.svg`} style={{ width: 28, height: 28 }} />
