@@ -41,10 +41,10 @@ function Hero({ onCTA }) {
           }}>
             Cada figura é{" "}
             <span style={{
-              background: "linear-gradient(180deg, #FF9A00 0%, #FF5A00 50%, #C42A0A 100%)",
+              background: "linear-gradient(180deg, #C85800 0%, #962400 50%, #621200 100%)",
               WebkitBackgroundClip: "text", backgroundClip: "text",
               color: "transparent",
-              filter: "drop-shadow(0 1px 0 rgba(80,20,0,0.25)) drop-shadow(0 0 16px rgba(255,90,20,0.4))",
+              filter: "drop-shadow(0 1px 0 rgba(60,10,0,0.35))",
             }}>uma relíquia.</span>
           </h1>
           <div style={{
