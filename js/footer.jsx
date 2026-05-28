@@ -6,6 +6,12 @@ function Footer() {
     { t: "Taverna", links: ["Sobre Relic", "Atelier", "Blog do Caçador", "Carreiras"] },
     { t: "Frota",   links: ["Frete & Prazos", "Trocas & Devoluções", "Pagamento", "Atendimento", "FAQ"] },
   ];
+  const socials = [
+    { icon: "compass", label: "Instagram" },
+    { icon: "scroll",  label: "YouTube" },
+    { icon: "skull",   label: "X / Twitter" },
+    { icon: "anchor",  label: "Discord" },
+  ];
   return (
     <footer style={{
       borderTop: "1px solid var(--gold-400)",
@@ -16,20 +22,24 @@ function Footer() {
       <div className="container">
         <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr 1fr 1fr 1fr", gap: 40, marginBottom: 48 }}>
           <div>
-            <img src="assets/wordmark-relic.svg" style={{ height: 72, marginBottom: 12 }} />
+            <img src="assets/wordmark-relic.svg" alt="Relic Studios" style={{ height: 72, marginBottom: 12 }} />
             <p style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--fg-muted)", lineHeight: 1.6, margin: 0, maxWidth: 280 }}>
               Cada figura é uma relíquia. Garimpadas em Tóquio, Hong Kong e Osaka — entregues no Brasil inteiro.
             </p>
-            <div style={{ display: "flex", gap: 14, marginTop: 18 }}>
-              {["compass","scroll","skull","anchor"].map(g => (
-                <a key={g} style={{ display: "inline-flex", cursor: "pointer" }}>
-                  <img src={`assets/icons/${g}.svg`} style={{ width: 22, height: 22, opacity: 0.75 }} />
-                </a>
+            <nav aria-label="Redes sociais" style={{ display: "flex", gap: 14, marginTop: 18 }}>
+              {socials.map(s => (
+                <button key={s.icon} aria-label={s.label} style={{
+                  background: "transparent", border: "none", padding: 0, cursor: "pointer",
+                  display: "inline-flex", borderRadius: 2,
+                }}>
+                  <img src={`assets/icons/${s.icon}.svg`} alt="" aria-hidden="true"
+                       style={{ width: 22, height: 22, opacity: 0.75 }} />
+                </button>
               ))}
-            </div>
+            </nav>
           </div>
           {cols.map(c => (
-            <div key={c.t}>
+            <nav key={c.t} aria-label={`Links: ${c.t}`}>
               <div style={{
                 fontFamily: '"Bebas Neue", Impact, sans-serif',
                 letterSpacing: "0.16em", fontSize: 16, color: "var(--gold-300)",
@@ -37,13 +47,16 @@ function Footer() {
               }}>{c.t}</div>
               <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
                 {c.links.map(l => (
-                  <li key={l}><a style={{
-                    fontFamily: "var(--font-body)", fontSize: 13, color: "var(--parch-100)",
-                    textDecoration: "none", cursor: "pointer",
-                  }}>{l}</a></li>
+                  <li key={l}>
+                    <button style={{
+                      background: "transparent", border: "none", padding: 0, cursor: "pointer",
+                      fontFamily: "var(--font-body)", fontSize: 13, color: "var(--parch-100)",
+                      textAlign: "left",
+                    }}>{l}</button>
+                  </li>
                 ))}
               </ul>
-            </div>
+            </nav>
           ))}
         </div>
         <div style={{
@@ -53,14 +66,15 @@ function Footer() {
           <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--fg-faint)", letterSpacing: "0.04em" }}>
             © 2026 RELIC STUDIOS · CNPJ 00.000.000/0001-00 · São Paulo, BR
           </div>
-          <div style={{ display: "flex", gap: 20 }}>
+          <nav aria-label="Links legais" style={{ display: "flex", gap: 20 }}>
             {["Privacidade","Termos","Política de cookies"].map(l => (
-              <a key={l} style={{
+              <button key={l} style={{
+                background: "transparent", border: "none", padding: 0, cursor: "pointer",
                 fontFamily: "var(--font-body)", fontSize: 11, color: "var(--fg-faint)",
-                letterSpacing: "0.06em", textTransform: "uppercase", textDecoration: "none", cursor: "pointer",
-              }}>{l}</a>
+                letterSpacing: "0.06em", textTransform: "uppercase",
+              }}>{l}</button>
             ))}
-          </div>
+          </nav>
         </div>
       </div>
     </footer>

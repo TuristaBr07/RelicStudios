@@ -1,7 +1,65 @@
-/* ===== Atoms: Button, TierChip, StatusPill, Icon, Glyph, Silhouette, ProductStage, brl ===== */
+/* ===== Atoms: Button, TierChip, StatusPill, Icon, Glyph, Silhouette, ProductStage, brl
+         Hooks: useFocusTrap, useMediaQuery ===== */
 const { useState } = React;
 
-function Button({ variant = "primary", size = "md", icon, children, onClick, type = "button", style, disabled }) {
+/* Prende o foco dentro de um container enquanto isActive for true.
+   Ao fechar (isActive → false) devolve o foco ao elemento que disparou a abertura. */
+function useFocusTrap(containerRef, isActive) {
+  const prevFocusRef = React.useRef(null);
+
+  React.useEffect(() => {
+    if (isActive) {
+      prevFocusRef.current = document.activeElement;
+      const FOCUSABLE = [
+        'button:not([disabled])',
+        'a[href]',
+        'input:not([disabled])',
+        'select:not([disabled])',
+        'textarea:not([disabled])',
+        '[tabindex]:not([tabindex="-1"])',
+      ].join(', ');
+
+      const container = containerRef.current;
+      if (!container) return;
+
+      const getFocusable = () => Array.from(container.querySelectorAll(FOCUSABLE));
+      const first = getFocusable()[0];
+      first?.focus();
+
+      const trap = (e) => {
+        if (e.key !== 'Tab') return;
+        const els = getFocusable();
+        const f = els[0], l = els[els.length - 1];
+        if (e.shiftKey && document.activeElement === f) {
+          l?.focus(); e.preventDefault();
+        } else if (!e.shiftKey && document.activeElement === l) {
+          f?.focus(); e.preventDefault();
+        }
+      };
+      container.addEventListener('keydown', trap);
+      return () => container.removeEventListener('keydown', trap);
+    } else {
+      prevFocusRef.current?.focus();
+    }
+  }, [isActive]);
+}
+
+/* Escuta mudanças de breakpoint CSS sem polling. */
+function useMediaQuery(query) {
+  const [matches, setMatches] = React.useState(
+    () => typeof window !== 'undefined' && window.matchMedia(query).matches
+  );
+  React.useEffect(() => {
+    const mql = window.matchMedia(query);
+    const handler = (e) => setMatches(e.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, [query]);
+  return matches;
+}
+
+function Button({ variant = "primary", size = "md", icon, children, onClick, type = "button",
+                  style, disabled, ariaLabel }) {
   const base = {
     border: "1px solid transparent",
     borderRadius: 2,
@@ -26,85 +84,49 @@ function Button({ variant = "primary", size = "md", icon, children, onClick, typ
     letterSpacing: "0.14em",
     textTransform: "uppercase",
   };
-  const sizes = {
-    sm: { padding: "10px 14px", fontSize: 11 },
-    md: { padding: "14px 22px", fontSize: 13 },
-    lg: { padding: "16px 28px", fontSize: 15 },
-  };
-  const sizesBebas = {
-    sm: { padding: "8px 14px", fontSize: 13 },
-    md: { padding: "12px 22px", fontSize: 16 },
-    lg: { padding: "16px 28px", fontSize: 20 },
-  };
+  const sizes    = { sm: { padding: "10px 14px", fontSize: 11 }, md: { padding: "14px 22px", fontSize: 13 }, lg: { padding: "16px 28px", fontSize: 15 } };
+  const sizesBebas = { sm: { padding: "8px 14px", fontSize: 13 }, md: { padding: "12px 22px", fontSize: 16 }, lg: { padding: "16px 28px", fontSize: 20 } };
   const variants = {
     primary: {
-      ...grotesk,
-      letterSpacing: "0.18em",
-      color: "#1A0B02",
-      textShadow: "0 1px 0 rgba(255,235,180,0.55)",
+      ...grotesk, letterSpacing: "0.18em",
+      color: "#1A0B02", textShadow: "0 1px 0 rgba(255,235,180,0.55)",
       background:
         "radial-gradient(ellipse 70% 100% at 50% 0%, rgba(255,250,210,0.85), transparent 60%)," +
         "linear-gradient(180deg, #FFE48A 0%, #F2B935 30%, #E07A12 60%, #B0420A 90%, #6E2606 100%)",
-      borderColor: "#4A1A04",
-      borderTopColor: "#FFE48A",
+      borderColor: "#4A1A04", borderTopColor: "#FFE48A",
       boxShadow: [
-        "inset 0 1px 0 rgba(255,248,210,0.95)",
-        "inset 0 -1px 0 rgba(50,16,4,0.6)",
-        "inset 0 -10px 18px rgba(255,120,30,0.55)",
-        "inset 0 -22px 32px rgba(110,38,6,0.5)",
-        "0 2px 0 #2A0E04",
-        "0 6px 12px rgba(0,0,0,0.55)",
-        "0 0 0 1px rgba(255,160,60,0.25)",
-        "0 0 18px -2px rgba(255,140,42,0.7)",
+        "inset 0 1px 0 rgba(255,248,210,0.95)", "inset 0 -1px 0 rgba(50,16,4,0.6)",
+        "inset 0 -10px 18px rgba(255,120,30,0.55)", "inset 0 -22px 32px rgba(110,38,6,0.5)",
+        "0 2px 0 #2A0E04", "0 6px 12px rgba(0,0,0,0.55)",
+        "0 0 0 1px rgba(255,160,60,0.25)", "0 0 18px -2px rgba(255,140,42,0.7)",
         "0 0 32px -6px rgba(232,110,30,0.6)",
       ].join(", "),
     },
     ember: {
-      ...grotesk,
-      letterSpacing: "0.18em",
-      color: "#1A0B02",
-      textShadow: "0 1px 0 rgba(255,230,180,0.6)",
+      ...grotesk, letterSpacing: "0.18em",
+      color: "#1A0B02", textShadow: "0 1px 0 rgba(255,230,180,0.6)",
       background:
         "radial-gradient(ellipse 70% 100% at 50% 0%, rgba(255,240,210,0.85), transparent 60%)," +
         "linear-gradient(180deg, #FFD08A 0%, #FF8A2A 35%, #DD3C12 78%, #6E1604 100%)",
-      borderColor: "#3A0D04",
-      borderTopColor: "#FFD08A",
+      borderColor: "#3A0D04", borderTopColor: "#FFD08A",
       boxShadow: [
-        "inset 0 1px 0 rgba(255,240,210,0.95)",
-        "inset 0 -1px 0 rgba(40,8,2,0.6)",
-        "inset 0 -10px 18px rgba(255,90,20,0.55)",
-        "inset 0 -22px 32px rgba(110,22,4,0.5)",
-        "0 2px 0 #1A0604",
-        "0 6px 12px rgba(0,0,0,0.55)",
-        "0 0 0 1px rgba(255,140,60,0.3)",
-        "0 0 22px -2px rgba(255,90,20,0.8)",
+        "inset 0 1px 0 rgba(255,240,210,0.95)", "inset 0 -1px 0 rgba(40,8,2,0.6)",
+        "inset 0 -10px 18px rgba(255,90,20,0.55)", "inset 0 -22px 32px rgba(110,22,4,0.5)",
+        "0 2px 0 #1A0604", "0 6px 12px rgba(0,0,0,0.55)",
+        "0 0 0 1px rgba(255,140,60,0.3)", "0 0 22px -2px rgba(255,90,20,0.8)",
         "0 0 40px -6px rgba(220,40,10,0.55)",
       ].join(", "),
     },
-    secondary: {
-      ...bebas,
-      background: "transparent",
-      color: "var(--gold-200)",
-      borderColor: "var(--gold-400)",
-    },
-    ghost: {
-      ...bebas,
-      background: "transparent",
-      color: "var(--parch-100)",
-      borderColor: "var(--line-strong)",
-    },
-    disabled: {
-      ...bebas,
-      background: "var(--pewter-400)",
-      color: "var(--pewter-200)",
-      borderColor: "var(--pewter-400)",
-    },
+    secondary: { ...bebas, background: "transparent", color: "var(--gold-200)", borderColor: "var(--gold-400)" },
+    ghost:     { ...bebas, background: "transparent", color: "var(--parch-100)", borderColor: "var(--line-strong)" },
+    disabled:  { ...bebas, background: "var(--pewter-400)", color: "var(--pewter-200)", borderColor: "var(--pewter-400)" },
   };
   const v = disabled ? variants.disabled : variants[variant];
   const useGrotesk = !disabled && (variant === "primary" || variant === "ember");
   const sz = useGrotesk ? sizes[size] : sizesBebas[size];
   return (
     <button type={type} onClick={disabled ? undefined : onClick} disabled={disabled}
+            aria-label={ariaLabel}
             style={{ ...base, ...sz, ...v, ...style }}>
       {icon && <span style={{ display: "inline-flex", marginRight: -2 }}>{icon}</span>}
       {children}
@@ -129,22 +151,12 @@ function TierChip({ tier = "raro", style }) {
   const labels = { comum: "Comum", raro: "Raro", epico: "Épico", lendaria: "★ Lendária" };
   return (
     <span style={{
-      position: "relative",
-      fontFamily: '"Bebas Neue", Impact, sans-serif',
-      letterSpacing: "0.18em",
-      textTransform: "uppercase",
-      fontSize: 11,
-      padding: "5px 11px",
-      borderRadius: 2,
-      border: `1px solid ${t.border}`,
-      background: t.bg,
-      color: t.color,
-      lineHeight: 1,
-      boxShadow: t.shadow || "none",
-      textShadow: t.textShadow || "none",
-      whiteSpace: "nowrap",
-      overflow: "hidden",
-      ...style,
+      position: "relative", fontFamily: '"Bebas Neue", Impact, sans-serif',
+      letterSpacing: "0.18em", textTransform: "uppercase", fontSize: 11,
+      padding: "5px 11px", borderRadius: 2,
+      border: `1px solid ${t.border}`, background: t.bg, color: t.color,
+      lineHeight: 1, boxShadow: t.shadow || "none", textShadow: t.textShadow || "none",
+      whiteSpace: "nowrap", overflow: "hidden", ...style,
     }}>
       {!t.flat && <span style={{
         position: "absolute", inset: "1px 2px auto 2px", height: "38%",
@@ -159,10 +171,10 @@ function TierChip({ tier = "raro", style }) {
 
 function StatusPill({ status = "success", children }) {
   const s = {
-    success: { bg: "rgba(123,174,79,0.18)", color: "#B6D595", border: "rgba(123,174,79,0.45)" },
-    warning: { bg: "rgba(232,176,40,0.18)", color: "#F7DD8E", border: "rgba(232,176,40,0.5)" },
-    danger:  { bg: "rgba(196,50,26,0.18)", color: "#F0A696", border: "rgba(196,50,26,0.55)" },
-    info:    { bg: "rgba(94,143,168,0.18)", color: "#BCD4E0", border: "rgba(94,143,168,0.45)" },
+    success: { bg: "rgba(123,174,79,0.18)",  color: "#B6D595", border: "rgba(123,174,79,0.45)" },
+    warning: { bg: "rgba(232,176,40,0.18)",  color: "#F7DD8E", border: "rgba(232,176,40,0.5)" },
+    danger:  { bg: "rgba(196,50,26,0.18)",   color: "#F0A696", border: "rgba(196,50,26,0.55)" },
+    info:    { bg: "rgba(94,143,168,0.18)",  color: "#BCD4E0", border: "rgba(94,143,168,0.45)" },
   }[status];
   return (
     <span style={{
@@ -171,13 +183,16 @@ function StatusPill({ status = "success", children }) {
       background: s.bg, color: s.color, border: `1px solid ${s.border}`,
       display: "inline-flex", alignItems: "center", gap: 6,
     }}>
-      <span style={{ width: 6, height: 6, borderRadius: 999, background: "currentColor",
-                     boxShadow: status === "warning" ? "0 0 8px currentColor" : "none" }} />
+      <span aria-hidden="true" style={{
+        width: 6, height: 6, borderRadius: 999, background: "currentColor",
+        boxShadow: status === "warning" ? "0 0 8px currentColor" : "none",
+      }} />
       {children}
     </span>
   );
 }
 
+/* Icon — sempre decorativo; use aria-label no elemento pai se o ícone transmite significado. */
 function Icon({ name, size = 20, color = "currentColor", strokeWidth = 1.75 }) {
   const paths = {
     search:  <><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></>,
@@ -197,15 +212,18 @@ function Icon({ name, size = 20, color = "currentColor", strokeWidth = 1.75 }) {
     menu:    <><path d="M3 6h18M3 12h18M3 18h18"/></>,
   };
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+    <svg aria-hidden="true" focusable="false"
+         width={size} height={size} viewBox="0 0 24 24" fill="none"
          stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"
-         style={{ flexShrink: 0 }}>{paths[name]}</svg>
+         style={{ flexShrink: 0 }}>
+      {paths[name]}
+    </svg>
   );
 }
 
 function Glyph({ name, size = 20, style }) {
   return (
-    <img src={`assets/icons/${name}.svg`} width={size} height={size} alt="" style={style} />
+    <img src={`assets/icons/${name}.svg`} width={size} height={size} alt="" aria-hidden="true" style={style} />
   );
 }
 
@@ -217,7 +235,7 @@ function Silhouette({ seed = 0, glow = "rgba(232,176,40,0.25)" }) {
     "polygon(40% 0, 60% 0, 66% 30%, 60% 50%, 76% 70%, 80% 100%, 20% 100%, 24% 70%, 40% 50%, 34% 30%)",
   ];
   return (
-    <div style={{
+    <div aria-hidden="true" style={{
       width: "55%", height: "78%",
       background: "linear-gradient(180deg, #6B4A30 0%, #3A2018 100%)",
       clipPath: shapes[seed % shapes.length],
@@ -226,7 +244,7 @@ function Silhouette({ seed = 0, glow = "rgba(232,176,40,0.25)" }) {
   );
 }
 
-function ProductStage({ children, image, glow = "rgba(232,176,40,0.18)" }) {
+function ProductStage({ children, image, glow = "rgba(232,176,40,0.18)", alt = "" }) {
   return (
     <div style={{
       width: "100%", aspectRatio: "1",
@@ -241,13 +259,11 @@ function ProductStage({ children, image, glow = "rgba(232,176,40,0.18)" }) {
       position: "relative", overflow: "hidden",
     }}>
       {image ? (
-        <img src={image} alt="" style={{
-          width: "100%", height: "100%", objectFit: "cover", display: "block",
-        }}/>
+        <img src={image} alt={alt} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}/>
       ) : (
         <>
           {children}
-          <div style={{
+          <div aria-hidden="true" style={{
             position: "absolute", left: "10%", right: "10%", bottom: "4%", height: "8%",
             background: "radial-gradient(ellipse at center top, rgba(255,140,42,0.5), transparent 70%)",
             filter: "blur(4px)",
@@ -259,7 +275,10 @@ function ProductStage({ children, image, glow = "rgba(232,176,40,0.18)" }) {
 }
 
 function brl(value) {
-  return "R$ " + value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return "R$ " + value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-Object.assign(window, { Button, TierChip, StatusPill, Icon, Glyph, Silhouette, ProductStage, brl });
+Object.assign(window, {
+  Button, TierChip, StatusPill, Icon, Glyph, Silhouette, ProductStage, brl,
+  useFocusTrap, useMediaQuery,
+});

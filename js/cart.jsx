@@ -1,57 +1,82 @@
 /* ===== Cart — slide-over drawer ===== */
 
 function CartDrawer({ open, items, onClose, onRemove, onQty, onCheckout }) {
+  const drawerRef = React.useRef(null);
+  useFocusTrap(drawerRef, open);
+
+  React.useEffect(() => {
+    if (!open) return;
+    const handleEsc = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handleEsc);
+    return () => document.removeEventListener('keydown', handleEsc);
+  }, [open, onClose]);
+
   const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
   const freeShip = subtotal >= 499;
+
   return (
     <div style={{
       position: "fixed", inset: 0, zIndex: 100,
       pointerEvents: open ? "auto" : "none",
     }}>
-      <div onClick={onClose} style={{
+      <div onClick={onClose} aria-hidden="true" style={{
         position: "absolute", inset: 0,
         background: "rgba(0,0,0,0.7)",
         opacity: open ? 1 : 0,
         transition: "opacity 220ms cubic-bezier(0.2, 0.7, 0.2, 1)",
       }} />
-      <aside style={{
-        position: "absolute", top: 0, right: 0, bottom: 0,
-        width: 440,
-        background: "linear-gradient(180deg, #15110C 0%, #1F1812 100%)",
-        borderLeft: "1px solid var(--gold-400)",
-        boxShadow: "var(--shadow-3)",
-        transform: open ? "translateX(0)" : "translateX(100%)",
-        transition: "transform 320ms cubic-bezier(0.2, 0.7, 0.2, 1)",
-        display: "flex", flexDirection: "column",
-      }}>
+      <aside ref={drawerRef}
+             role="dialog"
+             aria-modal="true"
+             aria-label="Carrinho de compras"
+             style={{
+               position: "absolute", top: 0, right: 0, bottom: 0,
+               width: 440,
+               background: "linear-gradient(180deg, #15110C 0%, #1F1812 100%)",
+               borderLeft: "1px solid var(--gold-400)",
+               boxShadow: "var(--shadow-3)",
+               transform: open ? "translateX(0)" : "translateX(100%)",
+               transition: "transform 320ms cubic-bezier(0.2, 0.7, 0.2, 1)",
+               display: "flex", flexDirection: "column",
+             }}>
+
         <header style={{
-          padding: "20px 24px",
-          borderBottom: "1px solid var(--line)",
+          padding: "20px 24px", borderBottom: "1px solid var(--line)",
           display: "flex", alignItems: "center", gap: 12,
         }}>
-          <img src="assets/icons/chest.svg" style={{ width: 28, height: 28 }} />
-          <h3 style={{
+          <img src="assets/icons/chest.svg" style={{ width: 28, height: 28 }} alt="" aria-hidden="true" />
+          <h2 style={{
             fontFamily: '"Bebas Neue", Impact, sans-serif',
             letterSpacing: "0.1em", fontSize: 24, margin: 0, color: "var(--fg)",
-          }}>SEU BAÚ <span style={{ color: "var(--fg-faint)", fontSize: 16 }}>({items.length})</span></h3>
-          <button onClick={onClose} style={{
+          }}>
+            SEU BAÚ{" "}
+            <span style={{ color: "var(--fg-faint)", fontSize: 16 }}>
+              (<span aria-label={`${items.length} item${items.length !== 1 ? 's' : ''}`}>{items.length}</span>)
+            </span>
+          </h2>
+          <button onClick={onClose} aria-label="Fechar carrinho" style={{
             marginLeft: "auto", background: "transparent", border: "none", cursor: "pointer",
-            color: "var(--parch-100)", padding: 6,
+            color: "var(--parch-100)", padding: 6, borderRadius: 2,
           }}>
             <Icon name="close" size={20} color="var(--parch-100)" />
           </button>
         </header>
 
+        {/* Barra de progresso frete grátis */}
         <div style={{ padding: "14px 24px 0" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-            <img src="assets/icons/anchor.svg" style={{ width: 16, height: 16 }} />
+            <img src="assets/icons/anchor.svg" style={{ width: 16, height: 16 }} alt="" aria-hidden="true" />
             <div style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--fg-muted)" }}>
               {freeShip
                 ? <><b style={{ color: "var(--gold-200)" }}>Frete-tesouro liberado!</b> Bom saque, caçador.</>
                 : <>Falta <b style={{ color: "var(--gold-200)" }}>{brl(499 - subtotal)}</b> para o frete grátis.</>}
             </div>
           </div>
-          <div style={{ height: 4, borderRadius: 1, background: "var(--vault-900)", overflow: "hidden" }}>
+          <div role="progressbar"
+               aria-valuemin={0} aria-valuemax={499}
+               aria-valuenow={Math.min(subtotal, 499)}
+               aria-label="Progresso para frete grátis"
+               style={{ height: 4, borderRadius: 1, background: "var(--vault-900)", overflow: "hidden" }}>
             <div style={{
               height: "100%",
               width: `${Math.min(100, (subtotal / 499) * 100)}%`,
@@ -61,45 +86,45 @@ function CartDrawer({ open, items, onClose, onRemove, onQty, onCheckout }) {
           </div>
         </div>
 
+        {/* Lista de itens */}
         <div style={{ flex: 1, overflowY: "auto", padding: "16px 24px" }}>
           {items.length === 0 ? (
             <EmptyCart />
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 12 }}>
               {items.map(i => (
-                <div key={i.id} style={{
-                  display: "grid",
-                  gridTemplateColumns: "72px 1fr auto",
+                <li key={i.id} style={{
+                  display: "grid", gridTemplateColumns: "72px 1fr auto",
                   gap: 12, padding: 10,
-                  background: "var(--vault-800)",
-                  border: "1px solid var(--line)",
-                  borderRadius: 4,
+                  background: "var(--vault-800)", border: "1px solid var(--line)", borderRadius: 4,
                 }}>
                   <div style={{
                     width: 72, height: 72, borderRadius: 3,
-                    background: i.image ? "#0E1219" : "linear-gradient(180deg, #2A323F 0%, #0E1219 100%)",
-                    border: "1px solid var(--pewter-400)",
+                    background: i.image ? "#0B0907" : "linear-gradient(180deg, #2A2018 0%, #0E0B07 100%)",
+                    border: "1px solid rgba(232,176,40,0.18)",
                     display: "flex", alignItems: "center", justifyContent: "center",
                     overflow: "hidden", flexShrink: 0,
                   }}>
                     {i.image
-                      ? <img src={i.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }}/>
+                      ? <img src={i.image} alt={i.name} style={{ width: "100%", height: "100%", objectFit: "cover" }}/>
                       : <Silhouette seed={i.seed} glow={i.silhouetteGlow} />}
                   </div>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--fg-faint)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--parch-300)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
                       {i.franchise}
                     </div>
                     <div style={{ fontFamily: "var(--font-body)", fontWeight: 600, fontSize: 13, color: "var(--fg)", lineHeight: 1.3, marginTop: 2 }}>
                       {i.name}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
-                      <MiniQty value={i.qty} onChange={v => onQty(i, v)} />
-                      <button onClick={() => onRemove(i)} style={{
-                        background: "transparent", border: "none", padding: 0, cursor: "pointer",
-                        fontFamily: "var(--font-body)", fontSize: 11, color: "var(--fg-faint)",
-                        letterSpacing: "0.06em", textTransform: "uppercase",
-                      }}>Remover</button>
+                      <MiniQty value={i.qty} onChange={v => onQty(i, v)} productName={i.name} />
+                      <button onClick={() => onRemove(i)}
+                              aria-label={`Remover ${i.name} do carrinho`}
+                              style={{
+                                background: "transparent", border: "none", padding: 0, cursor: "pointer",
+                                fontFamily: "var(--font-body)", fontSize: 11, color: "var(--fg-faint)",
+                                letterSpacing: "0.06em", textTransform: "uppercase",
+                              }}>Remover</button>
                     </div>
                   </div>
                   <div style={{
@@ -107,16 +132,15 @@ function CartDrawer({ open, items, onClose, onRemove, onQty, onCheckout }) {
                     fontSize: 18, color: "var(--gold-200)",
                     letterSpacing: "0.04em", whiteSpace: "nowrap",
                   }}>{brl(i.price * i.qty)}</div>
-                </div>
+                </li>
               ))}
-            </div>
+            </ul>
           )}
         </div>
 
         {items.length > 0 && (
           <footer style={{
-            padding: "16px 24px 24px",
-            borderTop: "1px solid var(--line)",
+            padding: "16px 24px 24px", borderTop: "1px solid var(--line)",
             background: "rgba(11, 9, 7, 0.6)",
           }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
@@ -132,18 +156,12 @@ function CartDrawer({ open, items, onClose, onRemove, onQty, onCheckout }) {
             </div>
             <div style={{
               display: "flex", justifyContent: "space-between", alignItems: "baseline",
-              padding: "12px 0", borderTop: "1px solid var(--line)",
-              marginBottom: 16,
+              padding: "12px 0", borderTop: "1px solid var(--line)", marginBottom: 16,
             }}>
-              <span style={{
-                fontFamily: '"Bebas Neue", Impact, sans-serif',
-                letterSpacing: "0.12em", fontSize: 18, color: "var(--fg)",
-              }}>TOTAL</span>
-              <span style={{
-                fontFamily: '"Bebas Neue", Impact, sans-serif',
-                fontSize: 32, letterSpacing: "0.03em",
-                color: "var(--gold-200)",
-              }}>{brl(subtotal)}</span>
+              <span style={{ fontFamily: '"Bebas Neue", Impact, sans-serif', letterSpacing: "0.12em", fontSize: 18, color: "var(--fg)" }}>TOTAL</span>
+              <span style={{ fontFamily: '"Bebas Neue", Impact, sans-serif', fontSize: 32, letterSpacing: "0.03em", color: "var(--gold-200)" }}>
+                {brl(subtotal)}
+              </span>
             </div>
             <Button variant="primary" size="lg" style={{ width: "100%" }} onClick={onCheckout}>
               IR AO CHECKOUT →
@@ -161,19 +179,23 @@ function CartDrawer({ open, items, onClose, onRemove, onQty, onCheckout }) {
   );
 }
 
-function MiniQty({ value, onChange }) {
+function MiniQty({ value, onChange, productName = "" }) {
   return (
-    <div style={{
+    <div role="group" aria-label={`Quantidade de ${productName}`} style={{
       display: "inline-flex", alignItems: "center",
       border: "1px solid var(--line-strong)", borderRadius: 2,
       background: "var(--vault-900)",
     }}>
-      <button onClick={() => onChange(Math.max(1, value - 1))} style={miniBtn}>−</button>
-      <span style={{
+      <button onClick={() => onChange(Math.max(1, value - 1))}
+              aria-label="Diminuir"
+              style={miniBtn}>−</button>
+      <span aria-live="polite" aria-atomic="true" style={{
         padding: "0 10px", minWidth: 22, textAlign: "center",
         fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--gold-200)",
       }}>{value}</span>
-      <button onClick={() => onChange(value + 1)} style={miniBtn}>+</button>
+      <button onClick={() => onChange(value + 1)}
+              aria-label="Aumentar"
+              style={miniBtn}>+</button>
     </div>
   );
 }
@@ -189,11 +211,10 @@ function EmptyCart() {
       display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center",
       padding: "48px 16px", gap: 12,
     }}>
-      <img src="assets/icons/chest.svg" style={{ width: 64, height: 64, opacity: 0.35 }} />
-      <div style={{
-        fontFamily: '"Bebas Neue", Impact, sans-serif',
-        letterSpacing: "0.1em", fontSize: 22, color: "var(--fg)",
-      }}>BAÚ VAZIO, CAPITÃO</div>
+      <img src="assets/icons/chest.svg" style={{ width: 64, height: 64, opacity: 0.35 }} alt="" aria-hidden="true" />
+      <div style={{ fontFamily: '"Bebas Neue", Impact, sans-serif', letterSpacing: "0.1em", fontSize: 22, color: "var(--fg)" }}>
+        BAÚ VAZIO, CAPITÃO
+      </div>
       <div style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--fg-muted)", maxWidth: 280 }}>
         Volte ao vault e escolha sua próxima relíquia.
       </div>

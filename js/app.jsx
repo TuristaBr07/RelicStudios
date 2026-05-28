@@ -87,6 +87,12 @@ const PRODUCTS = [
   },
 ];
 
+const TITLES = {
+  home:       "Relic Studios — Figuras colecionáveis premium",
+  catalog:    "O Vault — Todas as relíquias · Relic Studios",
+  "bau-mensal": "Baú Mensal · Relic Studios",
+};
+
 function App() {
   const [route, setRoute]       = React.useState({ name: "home" });
   const [cart, setCart]         = React.useState([]);
@@ -96,16 +102,17 @@ function App() {
   const [quickView, setQuickView] = React.useState(null);
 
   const nav = (id) => {
-    if (id === "home") setRoute({ name: "home" });
-    else if (id === "drops") setRoute({ name: "bau-mensal" });
+    if (id === "home") { setRoute({ name: "home" }); document.title = TITLES.home; }
+    else if (id === "drops") { setRoute({ name: "bau-mensal" }); document.title = TITLES["bau-mensal"]; }
     else if (id === "vault" || id === "animes" || id === "games") {
-      setRoute({ name: "catalog", filter: id });
-    } else setRoute({ name: "home" });
+      setRoute({ name: "catalog", filter: id }); document.title = TITLES.catalog;
+    } else { setRoute({ name: "home" }); document.title = TITLES.home; }
     window.scrollTo({ top: 0, behavior: "instant" });
   };
 
   const openProduct = (p) => {
     setRoute({ name: "product", id: p.id });
+    document.title = `${p.name} — Relic Studios`;
     window.scrollTo({ top: 0, behavior: "instant" });
   };
 
@@ -134,7 +141,7 @@ function App() {
   return (
     <div className="app-shell">
       <Header cartCount={cartCount} onNav={nav} current={current} onOpenCart={() => setCartOpen(true)} />
-      <main>
+      <main id="main-content">
         {route.name === "home" && (
           <>
             <Hero onCTA={() => nav("vault")} />
@@ -197,7 +204,7 @@ function CatalogPage({ products, filters, onFiltersChange, sort, onSort, onOpen,
             {products.length} peças garimpadas. Filtre por franquia, raridade ou escala.
           </p>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 40 }}>
+        <div className="grid-catalog-layout">
           <Filters value={filters} onChange={onFiltersChange} />
           <div>
             <SortBar count={products.length} sort={sort} onSort={onSort} />
@@ -215,11 +222,11 @@ function FeaturedDrop({ products, onOpen, onAdd, onQuickView }) {
       <div className="container">
         <SectionHeading eyebrow="Recém-saqueados" title="Drops da semana"
           action={
-            <a style={{
+            <button onClick={() => {}} style={{
+              background: "transparent", border: "none", padding: 0, cursor: "pointer",
               fontFamily: '"Bebas Neue", Impact, sans-serif',
               letterSpacing: "0.14em", fontSize: 14, color: "var(--gold-200)",
-              cursor: "pointer", textDecoration: "none",
-            }}>VER TODOS →</a>
+            }}>VER TODOS →</button>
           } />
         <div style={{ marginTop: 32 }}>
           <ProductGrid products={products} onOpen={onOpen} onAdd={onAdd} onQuickView={onQuickView} />
@@ -231,16 +238,15 @@ function FeaturedDrop({ products, onOpen, onAdd, onQuickView }) {
 
 function Newsletter() {
   return (
-    <section style={{ padding: "80px 0 0" }}>
+    <section aria-labelledby="newsletter-heading" style={{ padding: "80px 0 0" }}>
       <div className="container">
-        <div style={{
+        <div className="grid-newsletter" style={{
           position: "relative", overflow: "hidden",
           borderRadius: 6,
           border: "1px solid var(--gold-400)",
           padding: "56px 48px",
           background: "linear-gradient(135deg, #1F1812 0%, #2C2218 100%)",
           boxShadow: "0 0 0 1px var(--gold-400), 0 0 60px -20px rgba(232,176,40,0.4)",
-          display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 32, alignItems: "center",
         }}>
           <div>
             <div style={{
@@ -248,7 +254,7 @@ function Newsletter() {
               letterSpacing: "0.22em", textTransform: "uppercase",
               color: "var(--gold-300)", marginBottom: 14,
             }}>— Mapa dos próximos baús —</div>
-            <h2 style={{
+            <h2 id="newsletter-heading" style={{
               fontFamily: '"Bebas Neue", Impact, sans-serif',
               fontSize: 56, lineHeight: 1, letterSpacing: "0.03em",
               textTransform: "uppercase", color: "var(--fg)", margin: 0,
@@ -258,12 +264,18 @@ function Newsletter() {
             </p>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <input placeholder="seu@email.com.br" style={{
-              background: "var(--vault-900)", color: "var(--fg)",
-              border: "1px solid var(--line-strong)", borderRadius: 2,
-              padding: "14px 16px", fontFamily: "var(--font-body)", fontSize: 15,
-              outline: "none",
-            }} />
+            <label htmlFor="newsletter-email" className="visually-hidden">Seu endereço de e-mail</label>
+            <input
+              id="newsletter-email"
+              type="email"
+              placeholder="seu@email.com.br"
+              autoComplete="email"
+              style={{
+                background: "var(--vault-900)", color: "var(--fg)",
+                border: "1px solid var(--line-strong)", borderRadius: 2,
+                padding: "14px 16px", fontFamily: "var(--font-body)", fontSize: 15,
+                outline: "none",
+              }} />
             <Button variant="primary" size="lg">ENTRAR NA FILA →</Button>
           </div>
         </div>
