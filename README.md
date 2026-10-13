@@ -84,6 +84,26 @@ Em **Minha conta**, cada usuário pode revisar as sessões ativas e revogar aces
 
 A entrega automática de convites por e-mail não faz parte da infraestrutura atual: o link é exibido uma única vez ao administrador para compartilhamento por canal seguro.
 
+## Fabricação
+
+A aplicação possui um catálogo de tecnologias, impressoras e materiais separado das regras comerciais.
+
+Tecnologias iniciais:
+
+- `MSLA`: material em mL e tempo de impressão por placa/camada (`BATCH_LAYER`);
+- `FDM`: material em gramas e tempo normalmente aditivo por job (`ADDITIVE`).
+
+Equipamentos iniciais cadastrados:
+
+- ELEGOO Saturn 4 12K: MSLA, volume útil `218.88 × 122.88 × 220 mm`, referência elétrica `24 V / 6 A` (144 W);
+- Creality Ender-3 V3 SE: FDM, volume útil `220 × 220 × 250 mm`, potência nominal `350 W`.
+
+Potência nominal não é tratada como consumo médio. O campo de consumo médio permanece sem valor até existir medição/calibração real. Custos de aquisição, máquina/h e manutenção também devem ser configurados administrativamente antes de entrarem na precificação.
+
+Materiais são cadastrados na unidade determinada pela tecnologia. O sistema deriva o custo unitário da quantidade e do preço da embalagem e preserva um percentual separado para perdas.
+
+A estrutura `manufacturing_jobs` representa jobs físicos vinculados a itens de pedidos, com impressora, material, quantidade produzida, material e tempo estimados/reais. A criação automática desses jobs será integrada à calculadora e aos pedidos na próxima etapa.
+
 ## Próxima evolução
 
-A próxima fase funcional será o cadastro de impressoras, tecnologias, materiais e a estrutura de jobs de fabricação que sustentará a calculadora MSLA/FDM.
+A próxima fase funcional será a nova calculadora de fabricação MSLA/FDM usando o catálogo e o modelo de jobs, substituindo os campos genéricos atuais de resina e máquina.

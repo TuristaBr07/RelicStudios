@@ -11,6 +11,7 @@ import type { Sql } from './lib/db.js';
 import { AppError } from './lib/core.js';
 import { authRoutes } from './modules/auth.js';
 import { catalogRoutes } from './modules/catalog.js';
+import { manufacturingRoutes } from './modules/manufacturing.js';
 import { quoteRoutes } from './modules/quotes.js';
 import { orderRoutes } from './modules/orders.js';
 export async function buildApp(db: Sql, c: Config) {
@@ -91,6 +92,7 @@ export async function buildApp(db: Sql, c: Config) {
   });
   await authRoutes(app, db, c);
   catalogRoutes(app, db);
+  manufacturingRoutes(app, db);
   quoteRoutes(app, db);
   orderRoutes(app, db);
   app.addHook('onSend', async (req, reply, payload) => {

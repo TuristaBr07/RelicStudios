@@ -14,6 +14,7 @@ import {
   ChevronRight,
   ShieldCheck,
   ArrowRight,
+  Printer,
 } from 'lucide-react';
 import { useAuth, Loading, Field, Form, Button, useAction, Feedback } from './lib';
 import { Dashboard } from './pages/Dashboard';
@@ -21,6 +22,7 @@ import { Clients } from './pages/Clients';
 import { CalculatorPage } from './pages/Pricing';
 import { Quotes, NewQuote, QuoteDetail } from './pages/Quotes';
 import { Orders, OrderDetail, Production, Payments } from './pages/Operations';
+import { Manufacturing } from './pages/Manufacturing';
 import { SettingsPage } from './pages/Settings';
 import { ActivateAccount, ResetPassword } from './pages/Access';
 const nav = [
@@ -30,6 +32,7 @@ const nav = [
   { to: '/quotes', label: 'Orçamentos', icon: FileText, commercial: true },
   { to: '/orders', label: 'Pedidos', icon: Package },
   { to: '/production', label: 'Produção', icon: Paintbrush },
+  { to: '/manufacturing', label: 'Fabricação', icon: Printer },
   { to: '/payments', label: 'Financeiro', icon: Wallet, commercial: true },
   { to: '/settings', label: 'Configurações', icon: Settings },
 ];
@@ -203,6 +206,7 @@ export default function App() {
             <Route path="/orders" element={<Orders />} />
             <Route path="/orders/:id" element={<OrderDetail />} />
             <Route path="/production" element={<Production />} />
+            <Route path="/manufacturing" element={<Manufacturing />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
