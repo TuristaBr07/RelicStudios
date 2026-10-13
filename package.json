@@ -1,0 +1,33 @@
+{
+  "name": "relic-studios",
+  "version": "1.0.1-rc.1",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "engines": {
+    "node": ">=24 <27"
+  },
+  "scripts": {
+    "dev": "node scripts/local.mjs",
+    "start:local": "node scripts/local.mjs --production-build",
+    "admin": "node --import tsx backend/src/cli/admin.ts",
+    "typecheck": "npm run typecheck --workspaces",
+    "build": "npm run build --workspaces",
+    "test": "npm run test -w backend",
+    "test:e2e": "playwright test",
+    "verify": "npm run typecheck && npm test && npm run build",
+    "setup": "node scripts/configure.mjs",
+    "format": "prettier --write backend/src backend/test frontend/src frontend/e2e scripts playwright.config.ts",
+    "setup:production": "node scripts/configure-production.mjs",
+    "release:check": "sh scripts/release-check.sh"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.0",
+    "prettier": "^3.6.2",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  },
+  "type": "module"
+}
