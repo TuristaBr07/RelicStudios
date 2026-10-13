@@ -19,9 +19,7 @@
     "test:e2e": "playwright test",
     "verify": "npm run typecheck && npm test && npm run build",
     "setup": "node scripts/configure.mjs",
-    "format": "prettier --write backend/src backend/test frontend/src frontend/e2e scripts playwright.config.ts",
-    "setup:production": "node scripts/configure-production.mjs",
-    "release:check": "sh scripts/release-check.sh"
+    "format": "prettier --write backend/src backend/test frontend/src frontend/e2e scripts playwright.config.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.0",
