@@ -104,6 +104,16 @@ Materiais são cadastrados na unidade determinada pela tecnologia. O sistema der
 
 A estrutura `manufacturing_jobs` representa jobs físicos vinculados a itens de pedidos, com impressora, material, quantidade produzida, material e tempo estimados/reais. A criação automática desses jobs será integrada à calculadora e aos pedidos na próxima etapa.
 
+## Calculadora MSLA/FDM
+
+A precificação usa jobs de fabricação em vez de campos genéricos de resina e máquina. Cada job seleciona impressora e material do catálogo e recebe do slicer o material por job, o tempo por job e quantas unidades aquele job produz.
+
+O servidor calcula quantos jobs físicos são necessários para a quantidade comercial, custos de material e perda, máquina, manutenção, energia calibrada, reserva de impressão, mão de obra, overhead, taxas e margem. Em MSLA, várias unidades na mesma placa compartilham o tempo do job; em FDM, o padrão operacional continua sendo um job por unidade, salvo quando o próprio slicer representar um job conjunto.
+
+Modelagem é tratada como custo único do item/lote. Pintura e acabamento permanecem custos por unidade. Ao converter um orçamento novo em pedido, os jobs planejados são materializados automaticamente em `manufacturing_jobs` e o tempo de impressão da produção vem desses jobs, sem multiplicação cega pela quantidade.
+
+Orçamentos históricos continuam íntegros. Uma revisão de orçamento criada no modelo antigo exige recálculo explícito no modelo novo, evitando converter automaticamente custos genéricos em materiais ou impressoras que não existiam no snapshot original.
+
 ## Próxima evolução
 
-A próxima fase funcional será a nova calculadora de fabricação MSLA/FDM usando o catálogo e o modelo de jobs, substituindo os campos genéricos atuais de resina e máquina.
+A próxima fase funcional será a estimativa assistida de pintura, acabamento e modelagem, comparando horas previstas e reais sem alterar automaticamente o preço de orçamentos já aprovados.

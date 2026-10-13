@@ -117,10 +117,7 @@ test('convite, recuperação, sessões e RBAC preservam o isolamento financeiro'
     assert.equal(client.statusCode, 201, client.body);
     const [policy] = await db.query('SELECT id,settings FROM relic.pricing_settings WHERE active');
     const input = {
-      resinGrams: 100,
-      resinPriceKg: 180,
-      printHours: 2,
-      machineHourlyCost: 2,
+      manufacturingJobs: [],
       finishingHours: 1,
       paintingHours: 1,
       packaging: 10,

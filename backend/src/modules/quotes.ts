@@ -4,7 +4,7 @@ import type { Sql, Row } from '../lib/db.js';
 import { roles } from './auth.js';
 import { ensure, audit, nextCode, today, addDays, dateOnly, stages } from '../lib/core.js';
 import { uuid, getId } from './catalog.js';
-import { pricingInputSchema, policySchema, calculate } from './pricing.js';
+import { pricingInputSchema, policySchema, calculateWithCatalog } from './pricing.js';
 import { quotePdf } from './quote-pdf.js';
 const itemSchema = z.object({
   description: z.string().trim().min(2).max(300),
@@ -72,13 +72,15 @@ export function quoteRoutes(app: FastifyInstance, db: Sql) {
         422,
       );
       const policy = policySchema.parse(p.settings);
-      const items = b.items.map((item) => ({
-        ...item,
-        calc: calculate(item.input, policy, req.user!.role),
-      }));
+      const items = await Promise.all(
+        b.items.map(async (item) => ({
+          ...item,
+          calc: await calculateWithCatalog(tx, item.input, policy, req.user!.role, item.quantity),
+        })),
+      );
       const subtotal = items.reduce((s, i) => s + i.calc.finalCents * i.quantity, 0),
-        cost = items.reduce((s, i) => s + i.calc.costCents * i.quantity, 0),
-        profit = items.reduce((s, i) => s + i.calc.profitCents * i.quantity, 0);
+        cost = items.reduce((s, i) => s + i.calc.batchCostCents, 0),
+        profit = items.reduce((s, i) => s + i.calc.batchProfitCents, 0);
       ensure(
         subtotal + b.shippingCents <= 100000000 && cost <= 100000000,
         'Orçamento excede o limite de R$ 1 milhão.',
@@ -226,14 +228,52 @@ export function quoteRoutes(app: FastifyInstance, db: Sql) {
           'INSERT INTO relic.order_items(order_id,quote_item_id,snapshot) VALUES($1,$2,$3) RETURNING id',
           [order!.id, item.id, JSON.stringify(item)],
         );
+        const input = item.calculation.input;
+        const manufacturing = Array.isArray(item.calculation.manufacturingJobs)
+          ? item.calculation.manufacturingJobs
+          : [];
+        let jobPosition = 1;
+        for (const job of manufacturing) {
+          let remaining = item.quantity;
+          for (let run = 1; run <= job.runs; run++) {
+            const output = Math.min(job.outputQuantity, remaining);
+            await tx.query(
+              `INSERT INTO relic.manufacturing_jobs(
+                order_item_id,printer_id,material_id,technology_code,position,status,output_quantity,
+                estimated_material_amount,estimated_minutes,snapshot,created_by
+              ) VALUES($1,$2,$3,$4,$5,'PLANNED',$6,$7,$8,$9,$10)`,
+              [
+                oi!.id,
+                job.printerId,
+                job.materialId,
+                job.technologyCode,
+                jobPosition++,
+                output,
+                job.materialAmountPerRun,
+                Math.round(job.printHoursPerRun * 60),
+                JSON.stringify({ ...job, run, runs: job.runs }),
+                req.user!.id,
+              ],
+            );
+            remaining -= output;
+          }
+        }
+        const legacy = !Array.isArray(input.manufacturingJobs);
+        const printHours = legacy
+          ? Number(input.printHours ?? 0) * item.quantity
+          : manufacturing.reduce(
+              (sum: number, job: Row) => sum + Number(job.printHoursPerRun) * Number(job.runs),
+              0,
+            );
+        const hours: Record<string, number> = {
+          PRINTING: printHours,
+          PAINTING: Number(input.paintingHours ?? 0) * item.quantity,
+          POST_PROCESSING: Number(input.finishingHours ?? 0) * item.quantity,
+          PREPARATION: legacy
+            ? Number(input.modelingHours ?? 0) * item.quantity
+            : Number(input.modelingHours ?? 0),
+        };
         for (const [index, stage] of stages.entries()) {
-          const input = item.calculation.input;
-          const hours: Record<string, number> = {
-            PRINTING: input.printHours,
-            PAINTING: input.paintingHours,
-            POST_PROCESSING: input.finishingHours,
-            PREPARATION: input.modelingHours,
-          };
           await tx.query(
             'INSERT INTO relic.production_steps(order_id,order_item_id,stage,status,position,estimated_hours) VALUES($1,$2,$3,$4,$5,$6)',
             [
@@ -242,7 +282,7 @@ export function quoteRoutes(app: FastifyInstance, db: Sql) {
               stage,
               index === 0 ? 'READY' : 'WAITING',
               index + 1,
-              (hours[stage] ?? 0) * item.quantity,
+              hours[stage] ?? 0,
             ],
           );
         }

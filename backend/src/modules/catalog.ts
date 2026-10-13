@@ -3,7 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import type { Sql } from '../lib/db.js';
 import { roles } from './auth.js';
 import { ensure, audit } from '../lib/core.js';
-import { policySchema, pricingInputSchema, calculate } from './pricing.js';
+import { policySchema, pricingInputSchema, calculateWithCatalog } from './pricing.js';
 export const uuid = z.uuid();
 export const getId = (params: unknown) => z.object({ id: uuid }).parse(params).id;
 const clientSchema = z
@@ -130,13 +130,25 @@ export function catalogRoutes(app: FastifyInstance, db: Sql) {
   });
   app.post('/api/pricing/calculate', async (req) => {
     roles(req, 'ADMIN', 'COMMERCIAL');
-    const b = z.object({ input: pricingInputSchema, policyId: uuid.optional() }).parse(req.body);
+    const b = z
+      .object({
+        input: pricingInputSchema,
+        policyId: uuid.optional(),
+        quantity: z.number().int().min(1).max(1000).default(1),
+      })
+      .parse(req.body);
     const [p] = b.policyId
       ? await db.query('SELECT * FROM relic.pricing_settings WHERE id=$1 AND active', [b.policyId])
       : await db.query('SELECT * FROM relic.pricing_settings WHERE active');
     ensure(p, 'Política ativa não encontrada.', 404);
     return {
-      ...calculate(b.input, policySchema.parse(p.settings), req.user!.role),
+      ...(await calculateWithCatalog(
+        db,
+        b.input,
+        policySchema.parse(p.settings),
+        req.user!.role,
+        b.quantity,
+      )),
       policyId: p.id,
       policyVersion: p.version,
     };

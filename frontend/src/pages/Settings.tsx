@@ -33,6 +33,7 @@ const policyLabels: Record<string, string> = {
   finishingHourly: 'Acabamento (R$/h)',
   paintingHourly: 'Pintura (R$/h)',
   modelingHourly: 'Modelagem (R$/h)',
+  electricityKwh: 'Energia elétrica (R$/kWh)',
   reservePercent: 'Reserva de impressão (%)',
   overheadPercent: 'Overhead (%)',
   minimumMarginPercent: 'Margem mínima (%)',

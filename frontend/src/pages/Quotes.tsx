@@ -165,6 +165,14 @@ export function NewQuote() {
       setRepricePending(false);
       return;
     }
+    if (source.items.some((i: Row) => !Array.isArray(i.calculation?.input?.manufacturingJobs))) {
+      setItems([]);
+      setRepriceError(
+        'Este orçamento usa o modelo antigo de custos. Recalcule cada peça com impressora, material e job antes de criar a revisão.',
+      );
+      setRepricePending(false);
+      return;
+    }
     let cancelled = false;
     Promise.all(
       source.items.map(async (i: Row) => ({
@@ -174,7 +182,7 @@ export function NewQuote() {
         quantity: i.quantity,
         input: i.calculation.input,
         result: await api('/pricing/calculate',
-          send('POST', { policyId: active.id, input: i.calculation.input })),
+          send('POST', { policyId: active.id, input: i.calculation.input, quantity: i.quantity })),
       })),
     )
       .then((repriced) => {
@@ -376,6 +384,7 @@ export function NewQuote() {
               initialPolicyId={activePolicy}
               {...(seed?.input && items.length === 0 ? { initial: seed.input } : {})}
               fixedPolicy
+              quantity={quantity}
               onUse={(input, result) => {
                 if (description.trim().length < 2) return;
                 setItems([

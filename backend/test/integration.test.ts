@@ -64,11 +64,24 @@ test('fluxo principal: login, cliente, orçamento, pedido e pagamento', { timeou
 
     const client = await call('POST', '/api/clients', { name: 'Cliente Teste' }, 201);
     const policy = (await call('GET', '/api/policies'))[0];
+    const [printer] = await db.query(
+      "SELECT id FROM relic.printers WHERE name='Saturn 4 12K'",
+    );
+    const [material] = await db.query(
+      `INSERT INTO relic.materials(
+        technology_code,name,manufacturer,variant,unit,package_quantity,package_price_cents,waste_percent
+      ) VALUES('MSLA','Resina integração','Teste','Cinza','ML',1000,18000,5) RETURNING id`,
+    );
     const input = {
-      resinGrams: 100,
-      resinPriceKg: 180,
-      printHours: 4,
-      machineHourlyCost: 2,
+      manufacturingJobs: [
+        {
+          printerId: printer!.id,
+          materialId: material!.id,
+          materialAmount: 100,
+          printHours: 4,
+          outputQuantity: 2,
+        },
+      ],
       finishingHours: 1,
       paintingHours: 2,
       consumables: 8,
@@ -77,6 +90,7 @@ test('fluxo principal: login, cliente, orçamento, pedido e pagamento', { timeou
     const calculation = await call('POST', '/api/pricing/calculate', {
       policyId: policy.id,
       input,
+      quantity: 2,
     });
     assert(calculation.finalCents > calculation.costCents);
 
@@ -86,7 +100,7 @@ test('fluxo principal: login, cliente, orçamento, pedido e pagamento', { timeou
       {
         clientId: client.id,
         policyId: policy.id,
-        items: [{ description: 'Peça de validação', quantity: 1, input }],
+        items: [{ description: 'Peça de validação', quantity: 2, input }],
         shippingCents: 0,
         leadDays: 14,
         notes: '',
@@ -101,6 +115,12 @@ test('fluxo principal: login, cliente, orçamento, pedido e pagamento', { timeou
     });
     const order = await call('POST', `/api/quotes/${quote.id}/order`, {}, 201);
     assert.match(order.code, /^PED-\d{4}-\d{4}$/);
+    const [job] = await db.query(
+      'SELECT output_quantity,estimated_minutes FROM relic.manufacturing_jobs WHERE order_item_id IN (SELECT id FROM relic.order_items WHERE order_id=$1)',
+      [order.id],
+    );
+    assert.equal(job?.output_quantity, 2);
+    assert.equal(job?.estimated_minutes, 240);
 
     await call(
       'POST',
