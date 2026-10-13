@@ -1,0 +1,50 @@
+name: Stage 8 Pricing Upgrade
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/stage8.py'
+      - '.github/workflows/stage8.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: stage8-pricing-upgrade
+  cancel-in-progress: false
+
+jobs:
+  upgrade:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Apply stage 8 changes
+        run: python3 scripts/stage8.py
+      - name: Remove temporary stage files
+        run: rm -f scripts/stage8.py .github/workflows/stage8.yml
+      - name: Install dependencies
+        run: npm ci --include=dev
+      - name: Verify typecheck tests and build
+        run: npm run verify
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run end-to-end tests
+        run: npm run test:e2e
+      - name: Commit validated upgrade
+        run: |
+          git config user.name 'Relic Studios Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'feat: rebuild pricing for MSLA and FDM jobs'
+          git push origin HEAD:main
