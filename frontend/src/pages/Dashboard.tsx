@@ -201,6 +201,14 @@ const eventNames: Record<string, string> = {
   PRODUCTION_UPDATED: 'Etapa de produção atualizada',
   POLICY_VERSION_CREATED: 'Nova política de preços',
   USER_CREATED: 'Usuário criado',
+  USER_INVITED: 'Usuário convidado',
+  USER_ACTIVATED: 'Conta ativada',
+  USER_SUSPENDED: 'Usuário suspenso',
+  USER_REACTIVATED: 'Usuário reativado',
+  PASSWORD_RESET: 'Senha recuperada',
+  PASSWORD_RESET_ISSUED: 'Recuperação de acesso emitida',
+  SESSION_REVOKED: 'Sessão encerrada',
+  SESSIONS_REVOKED: 'Sessões encerradas',
   FILE_LINKED: 'Referência adicionada',
 };
 export const eventLabel = (action: string) =>

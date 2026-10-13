@@ -1,5 +1,13 @@
 import { useState } from 'react';
-import { Plus, ShieldCheck, History, KeyRound } from 'lucide-react';
+import {
+  Plus,
+  ShieldCheck,
+  History,
+  KeyRound,
+  Copy,
+  MonitorSmartphone,
+  RefreshCw,
+} from 'lucide-react';
 import {
   useData,
   useAuth,
@@ -20,6 +28,7 @@ import {
   type Row,
 } from '../lib';
 import { eventLabel } from './Dashboard';
+
 const policyLabels: Record<string, string> = {
   finishingHourly: 'Acabamento (R$/h)',
   paintingHourly: 'Pintura (R$/h)',
@@ -34,6 +43,7 @@ const policyLabels: Record<string, string> = {
   validityDays: 'Validade do orçamento (dias)',
   depositPercent: 'Entrada (%)',
 };
+
 function Policies() {
   const { data, error, loading, reload } = useData<Row[]>('/policies?includeInactive=true');
   const [open, setOpen] = useState(false),
@@ -136,32 +146,74 @@ function Policies() {
     </section>
   );
 }
+
+type AccessLink = { title: string; url: string; expiresAt: string };
+
+function AccessLinkModal({ link, onClose }: { link: AccessLink; onClose: () => void }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <Modal title={link.title} onClose={onClose}>
+      <div className="modal-body">
+        <p className="muted">
+          Compartilhe o link por um canal seguro. O servidor armazena somente o hash do token e este
+          valor completo não será exibido novamente após fechar esta janela.
+        </p>
+        <Field label="Link de acesso">
+          <input readOnly value={link.url} onFocus={(e) => e.currentTarget.select()} />
+        </Field>
+        <p className="fine-print">Validade: {new Date(link.expiresAt).toLocaleString('pt-BR')}.</p>
+        <Button
+          className="primary full"
+          onClick={() =>
+            void navigator.clipboard.writeText(link.url).then(() => {
+              setCopied(true);
+            })
+          }
+        >
+          <Copy size={16} /> {copied ? 'Link copiado' : 'Copiar link'}
+        </Button>
+      </div>
+    </Modal>
+  );
+}
+
 function Users() {
   const { user } = useAuth();
   const { data, error, reload } = useData<Row[]>('/users');
   const [open, setOpen] = useState(false),
     [name, setName] = useState(''),
     [email, setEmail] = useState(''),
-    [password, setPassword] = useState(''),
-    [role, setRole] = useState('TEAM');
+    [role, setRole] = useState('TEAM'),
+    [link, setLink] = useState<AccessLink | null>(null);
   const action = useAction();
+
+  const updateUser = async (u: Row, patch: Partial<Row>) => {
+    await api(
+      `/users/${u.id}`,
+      send('PATCH', { role: patch.role ?? u.role, status: patch.status ?? u.status }),
+    );
+    await reload();
+  };
+
   return (
     <section className="panel">
       <div className="panel-heading">
-        <h2>
-          <ShieldCheck size={20} /> Acesso da equipe
-        </h2>
+        <div>
+          <h2>
+            <ShieldCheck size={20} /> Acesso da equipe
+          </h2>
+          <p className="muted">Convites, perfis e recuperação sem compartilhar senhas iniciais.</p>
+        </div>
         <button
           onClick={() => {
             setName('');
             setEmail('');
-            setPassword('');
             setRole('TEAM');
             action.clear();
             setOpen(true);
           }}
         >
-          <Plus size={16} /> Novo usuário
+          <Plus size={16} /> Convidar usuário
         </button>
       </div>
       <Feedback action={action} />
@@ -173,34 +225,96 @@ function Users() {
             <strong>{u.name}</strong>
             <small>
               {u.email} · {labels[u.role]}
+              {u.last_login_at ? ` · último acesso ${date(u.last_login_at)}` : ''}
             </small>
           </div>
-          <span className={`tag ${u.active ? 'green' : ''}`}>{u.active ? 'Ativo' : 'Inativo'}</span>
+          <span className={`tag ${u.status === 'ACTIVE' ? 'green' : ''}`}>{labels[u.status] ?? u.status}</span>
           {u.id !== user!.id && (
-            <Button
-              className="small"
-              busy={action.busy}
-              onClick={() =>
-                void action.run(async () => {
-                  await api(`/users/${u.id}`, send('PATCH', { role: u.role, active: !u.active }));
-                  await reload();
-                })
-              }
-            >
-              {u.active ? 'Desativar' : 'Reativar'}
-            </Button>
+            <div className="button-row">
+              <select
+                aria-label={`Perfil de ${u.name}`}
+                value={u.role}
+                disabled={action.busy}
+                onChange={(e) => void action.run(() => updateUser(u, { role: e.target.value }))}
+              >
+                {['TEAM', 'COMMERCIAL', 'ADMIN'].map((r) => (
+                  <option key={r} value={r}>
+                    {labels[r]}
+                  </option>
+                ))}
+              </select>
+              {u.status === 'PENDING' && (
+                <Button
+                  className="small"
+                  busy={action.busy}
+                  onClick={() =>
+                    void action.run(async () => {
+                      const r = await api(`/users/${u.id}/invitation`, send('POST', {}));
+                      setLink({
+                        title: 'Novo link de convite',
+                        url: r.invitationUrl,
+                        expiresAt: r.invitationExpiresAt,
+                      });
+                      await reload();
+                    })
+                  }
+                >
+                  <RefreshCw size={14} /> Novo convite
+                </Button>
+              )}
+              {u.status === 'ACTIVE' && (
+                <>
+                  <Button
+                    className="small"
+                    busy={action.busy}
+                    onClick={() =>
+                      void action.run(async () => {
+                        const r = await api(`/users/${u.id}/password-reset`, send('POST', {}));
+                        setLink({
+                          title: 'Link de recuperação',
+                          url: r.resetUrl,
+                          expiresAt: r.resetExpiresAt,
+                        });
+                      })
+                    }
+                  >
+                    Recuperar acesso
+                  </Button>
+                  <Button
+                    className="small"
+                    busy={action.busy}
+                    onClick={() => void action.run(() => updateUser(u, { status: 'SUSPENDED' }))}
+                  >
+                    Suspender
+                  </Button>
+                </>
+              )}
+              {u.status === 'SUSPENDED' && (
+                <Button
+                  className="small"
+                  busy={action.busy}
+                  onClick={() => void action.run(() => updateUser(u, { status: 'ACTIVE' }))}
+                >
+                  Reativar
+                </Button>
+              )}
+            </div>
           )}
         </div>
       ))}
       {open && (
-        <Modal title="Adicionar usuário" onClose={() => setOpen(false)}>
+        <Modal title="Convidar usuário" onClose={() => setOpen(false)}>
           <Form
             className="modal-body"
             onSubmit={() =>
               void action.run(async () => {
-                await api('/users', send('POST', { name, email, password, role }));
-                setPassword('');
+                const r = await api('/users', send('POST', { name, email, role }));
                 setOpen(false);
+                setLink({
+                  title: 'Link de convite',
+                  url: r.invitationUrl,
+                  expiresAt: r.invitationExpiresAt,
+                });
                 await reload();
               })
             }
@@ -223,20 +337,6 @@ function Users() {
                 onChange={(e) => setEmail(e.target.value)}
               />
             </Field>
-            <Field
-              label="Senha inicial"
-              hint="Mínimo de 12 caracteres. O usuário pode alterar no primeiro acesso."
-            >
-              <input
-                required
-                type="password"
-                autoComplete="new-password"
-                minLength={12}
-                maxLength={128}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </Field>
             <Field label="Perfil">
               <select value={role} onChange={(e) => setRole(e.target.value)}>
                 {['TEAM', 'COMMERCIAL', 'ADMIN'].map((r) => (
@@ -246,16 +346,86 @@ function Users() {
                 ))}
               </select>
             </Field>
+            <p className="fine-print">
+              O usuário ficará pendente até definir a própria senha pelo link de convite.
+            </p>
             <Feedback action={action} />
             <Button busy={action.busy} className="primary">
-              Criar usuário
+              Criar convite
             </Button>
           </Form>
         </Modal>
       )}
+      {link && <AccessLinkModal link={link} onClose={() => setLink(null)} />}
     </section>
   );
 }
+
+function Sessions() {
+  const { data, error, loading, reload } = useData<Row[]>('/auth/sessions');
+  const action = useAction();
+  return (
+    <section className="panel account-panel">
+      <div className="panel-heading">
+        <div>
+          <h2>
+            <MonitorSmartphone size={20} /> Sessões ativas
+          </h2>
+          <p className="muted">Revogue acessos antigos sem alterar sua senha.</p>
+        </div>
+        <Button
+          className="small"
+          busy={action.busy}
+          onClick={() =>
+            void action.run(async () => {
+              await api('/auth/sessions/revoke-others', send('POST', {}));
+              await reload();
+            }, 'Outras sessões encerradas.')
+          }
+        >
+          Encerrar outras
+        </Button>
+      </div>
+      <Feedback action={action} />
+      <ErrorBox error={error} />
+      {loading ? (
+        <Loading />
+      ) : (
+        data?.map((s) => (
+          <div className="user-row" key={s.id}>
+            <span className="client-avatar">
+              <MonitorSmartphone size={16} />
+            </span>
+            <div>
+              <strong>{s.current ? 'Esta sessão' : 'Sessão ativa'}</strong>
+              <small>
+                {s.ip_address || 'IP não informado'} · último uso {new Date(s.last_seen_at).toLocaleString('pt-BR')}
+              </small>
+              <small>{s.user_agent || 'Navegador não identificado'}</small>
+            </div>
+            {s.current ? (
+              <span className="tag green">Atual</span>
+            ) : (
+              <Button
+                className="small"
+                busy={action.busy}
+                onClick={() =>
+                  void action.run(async () => {
+                    await api(`/auth/sessions/${s.id}`, { method: 'DELETE' });
+                    await reload();
+                  }, 'Sessão encerrada.')
+                }
+              >
+                Encerrar
+              </Button>
+            )}
+          </div>
+        ))
+      )}
+    </section>
+  );
+}
+
 function Audit() {
   const [before, setBefore] = useState<string | null>(null);
   const { data, error, loading } = useData<Row[]>(`/audit${before ? `?before=${before}` : ''}`);
@@ -305,6 +475,7 @@ function Audit() {
     </section>
   );
 }
+
 export function SettingsPage() {
   const { user } = useAuth();
   const [tab, setTab] = useState('ACCOUNT'),
@@ -337,48 +508,51 @@ export function SettingsPage() {
         </div>
       </div>
       {tab === 'ACCOUNT' && (
-        <section className="panel account-panel">
-          <h2>
-            <KeyRound size={20} /> Alterar senha
-          </h2>
-          <p className="muted">
-            {user!.name} · {user!.email}
-          </p>
-          <Form
-            onSubmit={() =>
-              void action.run(async () => {
-                await api('/auth/password', send('POST', { currentPassword, newPassword }));
-                setCurrent('');
-                setNew('');
-              }, 'Senha alterada. As outras sessões foram encerradas.')
-            }
-          >
-            <Field label="Senha atual">
-              <input
-                type="password"
-                required
-                autoComplete="current-password"
-                value={currentPassword}
-                onChange={(e) => setCurrent(e.target.value)}
-              />
-            </Field>
-            <Field label="Nova senha" hint="Use pelo menos 12 caracteres.">
-              <input
-                type="password"
-                required
-                autoComplete="new-password"
-                minLength={12}
-                maxLength={128}
-                value={newPassword}
-                onChange={(e) => setNew(e.target.value)}
-              />
-            </Field>
-            <Feedback action={action} />
-            <Button busy={action.busy} className="primary">
-              Salvar nova senha
-            </Button>
-          </Form>
-        </section>
+        <>
+          <section className="panel account-panel">
+            <h2>
+              <KeyRound size={20} /> Alterar senha
+            </h2>
+            <p className="muted">
+              {user!.name} · {user!.email}
+            </p>
+            <Form
+              onSubmit={() =>
+                void action.run(async () => {
+                  await api('/auth/password', send('POST', { currentPassword, newPassword }));
+                  setCurrent('');
+                  setNew('');
+                }, 'Senha alterada. As outras sessões foram encerradas.')
+              }
+            >
+              <Field label="Senha atual">
+                <input
+                  type="password"
+                  required
+                  autoComplete="current-password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrent(e.target.value)}
+                />
+              </Field>
+              <Field label="Nova senha" hint="Use pelo menos 12 caracteres.">
+                <input
+                  type="password"
+                  required
+                  autoComplete="new-password"
+                  minLength={12}
+                  maxLength={128}
+                  value={newPassword}
+                  onChange={(e) => setNew(e.target.value)}
+                />
+              </Field>
+              <Feedback action={action} />
+              <Button busy={action.busy} className="primary">
+                Salvar nova senha
+              </Button>
+            </Form>
+          </section>
+          <Sessions />
+        </>
       )}
       {tab === 'POLICIES' && <Policies />}
       {tab === 'USERS' && <Users />}

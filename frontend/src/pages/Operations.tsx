@@ -37,6 +37,8 @@ import {
 import { FileLinks } from '../components/FileLinks';
 export function Orders() {
   const { data, error, loading } = useData<Row[]>('/orders');
+  const { user } = useAuth();
+  const commercial = user!.role !== 'TEAM';
   const [filter, setFilter] = useState('ACTIVE');
   const rows = data?.filter(
     (o) => filter === 'ALL' || !['DELIVERED', 'CANCELLED'].includes(o.status),
@@ -80,7 +82,7 @@ export function Orders() {
                     <th>Pedido / cliente</th>
                     <th>Situação</th>
                     <th>Previsão</th>
-                    <th>Total / recebido</th>
+                    {commercial && <th>Total / recebido</th>}
                     <th />
                   </tr>
                 </thead>
@@ -97,10 +99,12 @@ export function Orders() {
                         <Badge status={o.status} />
                       </td>
                       <td>{date(o.due_date)}</td>
-                      <td className="money">
-                        {money(o.total_cents)}
-                        <small>{money(o.received_cents)} recebido</small>
-                      </td>
+                      {commercial && (
+                        <td className="money">
+                          {money(o.total_cents)}
+                          <small>{money(o.received_cents)} recebido</small>
+                        </td>
+                      )}
                       <td>
                         <Link
                           className="icon-button"
@@ -496,6 +500,7 @@ export function OrderDetail() {
   if (loading) return <Loading />;
   if (!o) return <ErrorBox error={error} />;
   const complete = o.steps.filter((s: Row) => ['COMPLETED', 'CANCELLED'].includes(s.status)).length;
+  const actualHours = o.steps.reduce((sum: number, s: Row) => sum + Number(s.actual_hours || 0), 0);
   const change = (status: string) =>
     void action.run(async () => {
       await api(`/orders/${id}/status`, send('PATCH', { status, version: o.version, reason }));
@@ -542,22 +547,31 @@ export function OrderDetail() {
         )}
       </div>
       <div className="metrics">
-        <Metric
-          label="Total do pedido"
-          value={money(o.total_cents)}
-          detail="Peças e frete separados na proposta"
-        />
-        <Metric
-          label="Recebido líquido"
-          value={money(o.received_cents)}
-          detail={`Entrada prevista: ${money(o.deposit_cents)}`}
-        />
-        <Metric
-          label="Saldo pendente"
-          value={money(o.pending_cents)}
-          detail="Quitação antes da entrega"
-          accent
-        />
+        {commercial ? (
+          <>
+            <Metric
+              label="Total do pedido"
+              value={money(o.total_cents)}
+              detail="Peças e frete separados na proposta"
+            />
+            <Metric
+              label="Recebido líquido"
+              value={money(o.received_cents)}
+              detail={`Entrada prevista: ${money(o.deposit_cents)}`}
+            />
+            <Metric
+              label="Saldo pendente"
+              value={money(o.pending_cents)}
+              detail="Quitação antes da entrega"
+              accent
+            />
+          </>
+        ) : (
+          <>
+            <Metric label="Previsão" value={date(o.due_date)} detail="Prazo operacional" />
+            <Metric label="Horas registradas" value={`${actualHours} h`} detail="Tempo real da equipe" />
+          </>
+        )}
         <Metric
           label="Etapas concluídas"
           value={`${complete} / ${o.steps.length}`}
@@ -575,10 +589,14 @@ export function OrderDetail() {
           </h2>
           <p>
             {o.status === 'WAITING_PAYMENT'
-              ? `Aguardando ${money(o.deposit_pending_cents)} de entrada para confirmar o pedido.`
+              ? commercial
+                ? `Aguardando ${money(o.deposit_pending_cents)} de entrada para confirmar o pedido.`
+                : 'Aguardando a confirmação da entrada pelo Comercial.'
               : o.status === 'DELIVERED'
                 ? `Entrega registrada em ${date(o.delivered_at)}.`
-                : o.commercial_snapshot.paymentTerms}
+                : commercial
+                  ? o.commercial_snapshot.paymentTerms
+                  : 'Acompanhe e registre o avanço das etapas de produção.'}
           </p>
         </div>
         <div className="button-row">
@@ -619,7 +637,7 @@ export function OrderDetail() {
               </span>
               <h2>{item.snapshot.description}</h2>
             </div>
-            <span className="count">{money(item.snapshot.total_cents)}</span>
+            {commercial && <span className="count">{money(item.snapshot.total_cents)}</span>}
           </div>
           <div className="steps-list">
             {o.steps
@@ -738,6 +756,8 @@ export function OrderDetail() {
 }
 export function Production() {
   const { data, error, loading, reload } = useData<Row[]>('/production');
+  const { user } = useAuth();
+  const canEdit = user!.role === 'ADMIN' || user!.role === 'TEAM';
   const [filter, setFilter] = useState('ACTION'),
     [step, setStep] = useState<Row | null>(null);
   const rows = data?.filter(
@@ -795,7 +815,7 @@ export function Production() {
               </div>
               <footer>
                 <small>Entrega {date(s.due_date)}</small>
-                {!['COMPLETED', 'CANCELLED'].includes(s.status) && (
+                {canEdit && !['COMPLETED', 'CANCELLED'].includes(s.status) && (
                   <button className="small" onClick={() => setStep(s)}>
                     Atualizar etapa
                   </button>

@@ -11,23 +11,54 @@ export async function received(db: Sql, id: string): Promise<number> {
   );
   return r!.value;
 }
-export async function orderDetail(db: Sql, id: string) {
+const operationalSnapshot = (snapshot: Row = {}) => ({
+  position: snapshot.position,
+  description: snapshot.description,
+  character_name: snapshot.character_name,
+  scale: snapshot.scale,
+  quantity: snapshot.quantity,
+});
+const teamOrder = (order: Row) => ({
+  id: order.id,
+  code: order.code,
+  status: order.status,
+  due_date: order.due_date,
+  notes: order.notes,
+  delivered_at: order.delivered_at,
+  version: order.version,
+  created_at: order.created_at,
+  updated_at: order.updated_at,
+  client_snapshot: { name: order.client_snapshot?.name ?? '' },
+  commercial_snapshot: {
+    quoteCode: order.commercial_snapshot?.quoteCode ?? '',
+    leadDays: order.commercial_snapshot?.leadDays ?? 0,
+  },
+});
+export async function orderDetail(db: Sql, id: string, financial = true) {
   const [o] = await db.query('SELECT * FROM relic.orders WHERE id=$1', [id]);
   ensure(o, 'Pedido não encontrado.', 404);
-  const paid = await received(db, id);
   const steps = await db.query(
     "SELECT s.*,u.name AS assignee_name,i.snapshot FROM relic.production_steps s LEFT JOIN relic.users u ON u.id=s.assigned_to JOIN relic.order_items i ON i.id=s.order_item_id WHERE s.order_id=$1 ORDER BY (i.snapshot->>'position')::integer,s.position",
     [id],
   );
+  const items = await db.query(
+    "SELECT * FROM relic.order_items WHERE order_id=$1 ORDER BY (snapshot->>'position')::integer",
+    [id],
+  );
+  if (!financial)
+    return {
+      ...teamOrder(o!),
+      items: items.map((item) => ({ ...item, snapshot: operationalSnapshot(item.snapshot) })),
+      steps: steps.map((step) => ({ ...step, snapshot: operationalSnapshot(step.snapshot) })),
+      payments: [],
+    };
+  const paid = await received(db, id);
   return {
     ...o,
     received_cents: paid,
     pending_cents: Math.max(0, o.total_cents - paid),
     deposit_pending_cents: Math.max(0, o.deposit_cents - paid),
-    items: await db.query(
-      "SELECT * FROM relic.order_items WHERE order_id=$1 ORDER BY (snapshot->>'position')::integer",
-      [id],
-    ),
+    items,
     steps,
     payments: await db.query(
       'SELECT * FROM relic.payments WHERE order_id=$1 ORDER BY created_at DESC',
@@ -66,12 +97,15 @@ async function validatePayment(tx: Sql, order: Row, kind: string, amount: number
   }
 }
 export function orderRoutes(app: FastifyInstance, db: Sql) {
-  app.get('/api/orders', async () =>
-    db.query(
+  app.get('/api/orders', async (req) => {
+    const rows = await db.query(
       "SELECT o.*,coalesce(p.received,0)::integer AS received_cents,o.total_cents-coalesce(p.received,0)::integer AS pending_cents FROM relic.orders o LEFT JOIN (SELECT order_id,sum(CASE WHEN kind='REFUND' THEN -amount_cents ELSE amount_cents END) AS received FROM relic.payments WHERE status='RECEIVED' GROUP BY order_id) p ON p.order_id=o.id ORDER BY o.created_at DESC LIMIT 200",
-    ),
+    );
+    return req.user!.role === 'TEAM' ? rows.map(teamOrder) : rows;
+  });
+  app.get('/api/orders/:id', async (req) =>
+    orderDetail(db, getId(req.params), req.user!.role !== 'TEAM'),
   );
-  app.get('/api/orders/:id', async (req) => orderDetail(db, getId(req.params)));
   app.patch('/api/orders/:id/status', async (req) => {
     const id = getId(req.params);
     const b = z
@@ -81,7 +115,8 @@ export function orderRoutes(app: FastifyInstance, db: Sql) {
         reason: z.string().max(2000).default(''),
       })
       .parse(req.body);
-    if (['DELIVERED', 'CANCELLED'].includes(b.status)) roles(req, 'ADMIN', 'COMMERCIAL');
+    if (['IN_PRODUCTION', 'READY'].includes(b.status)) roles(req, 'ADMIN', 'TEAM');
+    else roles(req, 'ADMIN', 'COMMERCIAL');
     return db.transaction(async (tx) => {
       const [o] = await tx.query('SELECT * FROM relic.orders WHERE id=$1 FOR UPDATE', [id]);
       ensure(o, 'Pedido não encontrado.', 404);
@@ -128,7 +163,7 @@ export function orderRoutes(app: FastifyInstance, db: Sql) {
         from: o.status,
         reason: b.reason,
       });
-      return r;
+      return req.user!.role === 'TEAM' ? teamOrder(r!) : r;
     });
   });
   app.patch('/api/orders/:id', async (req) => {
@@ -242,12 +277,20 @@ export function orderRoutes(app: FastifyInstance, db: Sql) {
       return r;
     });
   });
-  app.get('/api/production', async () =>
-    db.query(
+  app.get('/api/production', async (req) => {
+    const rows = await db.query(
       "SELECT s.*,o.code AS order_code,o.status AS order_status,o.due_date,o.client_snapshot,i.snapshot,u.name AS assignee_name FROM relic.production_steps s JOIN relic.orders o ON o.id=s.order_id JOIN relic.order_items i ON i.id=s.order_item_id LEFT JOIN relic.users u ON u.id=s.assigned_to WHERE o.status NOT IN ('DELIVERED','CANCELLED') ORDER BY o.due_date,o.code,(i.snapshot->>'position')::integer,s.position LIMIT 1000",
-    ),
-  );
+    );
+    return req.user!.role === 'TEAM'
+      ? rows.map((row) => ({
+          ...row,
+          client_snapshot: { name: row.client_snapshot?.name ?? '' },
+          snapshot: operationalSnapshot(row.snapshot),
+        }))
+      : rows;
+  });
   app.patch('/api/production/:id', async (req) => {
+    roles(req, 'ADMIN', 'TEAM');
     const id = getId(req.params);
     const b = z
       .object({
@@ -386,7 +429,7 @@ export function orderRoutes(app: FastifyInstance, db: Sql) {
       'SELECT coalesce(sum(actual_hours),0)::numeric AS actual FROM relic.production_steps',
     );
     const due = await db.query(
-      "SELECT id,code,status,due_date,client_snapshot,total_cents FROM relic.orders WHERE status NOT IN ('DELIVERED','CANCELLED') ORDER BY due_date LIMIT 6",
+      "SELECT id,code,status,due_date,client_snapshot FROM relic.orders WHERE status NOT IN ('DELIVERED','CANCELLED') ORDER BY due_date LIMIT 6",
     );
     const recent = await db.query(
       'SELECT a.action,a.created_at,u.name AS actor_name FROM relic.audit_log a LEFT JOIN relic.users u ON u.id=a.actor_id ORDER BY a.id DESC LIMIT 8',

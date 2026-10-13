@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { FastifyInstance } from 'fastify';
 import type { Sql } from '../lib/db.js';
-import { roles, hashPassword, passwordSchema } from './auth.js';
+import { roles } from './auth.js';
 import { ensure, audit } from '../lib/core.js';
 import { policySchema, pricingInputSchema, calculate } from './pricing.js';
 export const uuid = z.uuid();
@@ -144,50 +144,6 @@ export function catalogRoutes(app: FastifyInstance, db: Sql) {
   app.get('/api/team', async () =>
     db.query('SELECT id,name,role FROM relic.users WHERE active ORDER BY name'),
   );
-  app.get('/api/users', async (req) => {
-    roles(req, 'ADMIN');
-    return db.query('SELECT id,name,email,role,active,created_at FROM relic.users ORDER BY name');
-  });
-  app.post('/api/users', async (req, reply) => {
-    roles(req, 'ADMIN');
-    const b = z
-      .object({
-        name: z.string().min(2).max(120),
-        email: z.email(),
-        password: passwordSchema,
-        role: z.enum(['ADMIN', 'TEAM', 'COMMERCIAL']),
-      })
-      .parse(req.body);
-    const hash = await hashPassword(b.password);
-    return db.transaction(async (tx) => {
-      const [r] = await tx.query(
-        'INSERT INTO relic.users(name,email,password_hash,role) VALUES($1,$2,$3,$4) RETURNING id,name,email,role,active',
-        [b.name, b.email.toLowerCase(), hash, b.role],
-      );
-      await audit(tx, req.user!.id, 'USER_CREATED', 'users', r!.id, { role: b.role });
-      reply.code(201);
-      return r;
-    });
-  });
-  app.patch('/api/users/:id', async (req) => {
-    roles(req, 'ADMIN');
-    const id = getId(req.params);
-    const b = z
-      .object({ active: z.boolean(), role: z.enum(['ADMIN', 'TEAM', 'COMMERCIAL']) })
-      .parse(req.body);
-    ensure(id !== req.user!.id, 'Você não pode desativar ou rebaixar sua própria conta.');
-    return db.transaction(async (tx) => {
-      await tx.query('SELECT pg_advisory_xact_lock(729106)');
-      const [r] = await tx.query(
-        'UPDATE relic.users SET active=$1,role=$2 WHERE id=$3 RETURNING id,name,email,role,active',
-        [b.active, b.role, id],
-      );
-      ensure(r, 'Usuário não encontrado.', 404);
-      await tx.query('DELETE FROM relic.sessions WHERE user_id=$1', [id]);
-      await audit(tx, req.user!.id, 'USER_UPDATED', 'users', id, b);
-      return r;
-    });
-  });
   app.get('/api/audit', async (req) => {
     roles(req, 'ADMIN');
     const q = z.object({ before: z.coerce.number().int().positive().optional() }).parse(req.query);

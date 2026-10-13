@@ -72,10 +72,18 @@ O Blueprint `render.yaml` mantém um Web Service Node e PostgreSQL. O serviço e
 
 Variáveis sensíveis, como `SESSION_SECRET`, credenciais do banco e senha de bootstrap, devem existir apenas no ambiente do Render e nunca no Git.
 
-## Segurança já presente
+## Segurança e acesso
 
 A aplicação utiliza sessão em cookie `HttpOnly`, `Secure` em HTTPS e `SameSite=Strict`, proteção CSRF/origin, rate limit, Helmet, senhas derivadas com `scrypt`, auditoria de ações críticas e validações de integridade no banco.
 
+Contas de equipe são criadas por convite: o administrador gera um link de ativação de uso único, e o próprio usuário define a senha. Links de recuperação também são de uso único, têm validade curta e revogam as sessões anteriores após a troca. Tokens brutos nunca são armazenados no banco.
+
+Perfis permanentes: `ADMIN`, `COMMERCIAL` e `TEAM`. O backend aplica RBAC; `TEAM` recebe somente os dados operacionais dos pedidos e da produção, sem preço, custo, margem, lucro ou pagamentos.
+
+Em **Minha conta**, cada usuário pode revisar as sessões ativas e revogar acessos antigos.
+
+A entrega automática de convites por e-mail não faz parte da infraestrutura atual: o link é exibido uma única vez ao administrador para compartilhamento por canal seguro.
+
 ## Próxima evolução
 
-A próxima fase funcional será tratada separadamente: autenticação/usuários e matriz de permissões. Mudanças de regra de negócio não fazem parte desta etapa de infraestrutura.
+A próxima fase funcional será o cadastro de impressoras, tecnologias, materiais e a estrutura de jobs de fabricação que sustentará a calculadora MSLA/FDM.

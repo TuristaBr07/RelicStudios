@@ -22,6 +22,7 @@ import { CalculatorPage } from './pages/Pricing';
 import { Quotes, NewQuote, QuoteDetail } from './pages/Quotes';
 import { Orders, OrderDetail, Production, Payments } from './pages/Operations';
 import { SettingsPage } from './pages/Settings';
+import { ActivateAccount, ResetPassword } from './pages/Access';
 const nav = [
   { to: '/', label: 'Visão geral', icon: LayoutDashboard },
   { to: '/clients', label: 'Clientes', icon: Users, commercial: true },
@@ -111,7 +112,11 @@ export default function App() {
   const location = useLocation();
   const action = useAction();
   if (loading) return <Loading />;
-  if (!user) return <Login />;
+  if (!user) {
+    if (location.pathname === '/activate') return <ActivateAccount />;
+    if (location.pathname === '/reset-password') return <ResetPassword />;
+    return <Login />;
+  }
   const commercial = user.role !== 'TEAM';
   const current = nav.find((n) =>
     n.to === '/' ? location.pathname === '/' : location.pathname.startsWith(n.to),

@@ -19,6 +19,7 @@ export type User = {
   name: string;
   email: string;
   role: 'ADMIN' | 'TEAM' | 'COMMERCIAL';
+  status: 'ACTIVE';
 };
 let token = '';
 export async function api<T = any>(url: string, options: RequestInit = {}): Promise<T> {
@@ -108,6 +109,8 @@ export const labels: Record<string, string> = {
   COMPLETED: 'Concluído',
   BLOCKED: 'Bloqueado',
   PENDING: 'Pendente',
+  ACTIVE: 'Ativo',
+  SUSPENDED: 'Suspenso',
   RECEIVED: 'Recebido',
   DEPOSIT: 'Entrada',
   BALANCE: 'Saldo',
