@@ -122,6 +122,14 @@ Acabamento e pintura permanecem por unidade; modelagem continua sendo um custo �
 
 As horas previstas não podem ser sobrescritas pela tela operacional. Uma futura necessidade de replanejamento deve ter um conceito separado da baseline comercial, preservando o histórico original.
 
+## Custo realizado
+
+Jobs de fabricação registram material e tempo reais. Ao concluir ou registrar falha, ambos são obrigatórios. O custo realizado usa o snapshot comercial do próprio job para material, máquina, manutenção e energia, preservando os preços e parâmetros existentes quando o orçamento foi aprovado.
+
+Horas reais das etapas são convertidas em custo pelo snapshot da política do pedido: preparação/modelagem usa modelagem, primer/pintura usa pintura e as demais atividades manuais usam produção/acabamento. Tempo de impressão não é contado novamente como mão de obra.
+
+O pedido apresenta custo previsto × realizado, variação e resultado sobre as peças. Consumíveis, embalagem e extras permanecem pelos valores aprovados até existir apontamento específico. A reserva de impressão continua sendo proteção comercial do orçamento e não é registrada como gasto realizado. Nenhum desvio operacional altera retroativamente o preço vendido.
+
 ## Próxima evolução
 
-A próxima fase funcional será consolidar produção e custo realizado, usando jobs e horas reais para analisar desvios sem modificar retroativamente orçamentos aprovados.
+A próxima fase funcional será aplicar a identidade visual oficial da Relic em login, aplicação e documentos, removendo a identidade provisória existente.

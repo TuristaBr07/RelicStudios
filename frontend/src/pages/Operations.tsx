@@ -352,6 +352,115 @@ function PaymentRows({ payments, onChange }: { payments: Row[]; onChange: () => 
     </>
   );
 }
+
+const jobStatusLabels: Record<string, string> = {
+  PLANNED: 'Planejado',
+  READY: 'Pronto para imprimir',
+  RUNNING: 'Imprimindo',
+  COMPLETED: 'Concluído',
+  FAILED: 'Falhou',
+  CANCELLED: 'Cancelado',
+};
+
+function JobEditor({
+  job,
+  onClose,
+  onSaved,
+}: {
+  job: Row;
+  onClose: () => void;
+  onSaved: () => Promise<void>;
+}) {
+  const { user } = useAuth();
+  const [status, setStatus] = useState(job.status),
+    [actualMaterial, setActualMaterial] = useState(
+      job.actual_material_amount == null ? '' : String(job.actual_material_amount),
+    ),
+    [actualHours, setActualHours] = useState(
+      job.actual_minutes == null ? '' : String(Number(job.actual_minutes) / 60),
+    ),
+    [notes, setNotes] = useState(job.notes ?? '');
+  const action = useAction();
+  const transitions: Record<string, string[]> = {
+    PLANNED: ['READY', 'CANCELLED'],
+    READY: ['RUNNING', 'CANCELLED'],
+    RUNNING: ['COMPLETED', 'FAILED', 'CANCELLED'],
+  };
+  const statuses = [job.status, ...(transitions[job.status] ?? [])].filter(
+    (value) => value !== 'CANCELLED' || user!.role === 'ADMIN',
+  );
+  const closing = ['COMPLETED', 'FAILED'].includes(status);
+  return (
+    <Modal title={`Job ${job.position} · ${job.printer_name}`} onClose={onClose}>
+      <Form
+        className="modal-body"
+        onSubmit={() =>
+          void action.run(async () => {
+            await api(
+              `/manufacturing/jobs/${job.id}`,
+              send('PATCH', {
+                version: job.version,
+                status,
+                actualMaterialAmount: actualMaterial === '' ? null : num(actualMaterial),
+                actualMinutes: actualHours === '' ? null : Math.round(num(actualHours) * 60),
+                notes,
+              }),
+            );
+            await onSaved();
+            onClose();
+          })
+        }
+      >
+        <p className="muted">
+          {job.material_name} · previsto {Number(job.estimated_material_amount).toLocaleString('pt-BR')} {job.material_unit} · {(Number(job.estimated_minutes) / 60).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} h
+        </p>
+        <div className="form-grid">
+          <Field label="Status do job">
+            <select value={status} onChange={(e) => setStatus(e.target.value)}>
+              {statuses.map((value) => (
+                <option value={value} key={value}>
+                  {jobStatusLabels[value] ?? value}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label={`Material real (${job.material_unit})`}>
+            <input
+              required={closing}
+              type="number"
+              min="0"
+              step="0.001"
+              value={actualMaterial}
+              onChange={(e) => setActualMaterial(e.target.value)}
+            />
+          </Field>
+          <Field label="Tempo real (h)">
+            <input
+              required={closing}
+              type="number"
+              min="0"
+              step="0.01"
+              value={actualHours}
+              onChange={(e) => setActualHours(e.target.value)}
+            />
+          </Field>
+        </div>
+        <Field label="Observações do job">
+          <textarea maxLength={4000} value={notes} onChange={(e) => setNotes(e.target.value)} />
+        </Field>
+        <p className="fine-print">
+          Ao concluir ou registrar falha, material e tempo reais tornam-se obrigatórios e alimentam o custo realizado. A reserva comercial do orçamento não é contabilizada como gasto real.
+        </p>
+        <Feedback action={action} />
+        <div className="form-actions">
+          <button type="button" onClick={onClose}>Cancelar</button>
+          <Button className="primary" busy={action.busy}>Salvar job</Button>
+        </div>
+      </Form>
+    </Modal>
+  );
+}
+
 export function StepEditor({
   step,
   onClose,
@@ -492,6 +601,7 @@ export function OrderDetail() {
   const { user } = useAuth();
   const [pay, setPay] = useState(false),
     [step, setStep] = useState<Row | null>(null),
+    [job, setJob] = useState<Row | null>(null),
     [cancel, setCancel] = useState(false),
     [reason, setReason] = useState(''),
     [editing, setEditing] = useState(false),
@@ -594,6 +704,29 @@ export function OrderDetail() {
           }
         />
       </div>
+      {commercial && o.cost_report && (
+        <>
+          <div className="metrics three-metrics">
+            <Metric
+              label="Custo previsto"
+              value={money(o.cost_report.estimatedCostCents)}
+              detail="Baseline aprovada no orçamento"
+            />
+            <Metric
+              label={o.cost_report.isFinal ? 'Custo realizado' : 'Custo realizado até agora'}
+              value={money(o.cost_report.actualCostCents)}
+              detail={`Variação ${o.cost_report.varianceCents >= 0 ? '+' : '−'} ${money(Math.abs(o.cost_report.varianceCents))}`}
+              accent
+            />
+            <Metric
+              label="Resultado sobre as peças"
+              value={money(o.cost_report.actualProfitCents)}
+              detail={o.cost_report.isFinal ? 'Lucro realizado antes do frete' : 'Parcial enquanto a produção está aberta'}
+            />
+          </div>
+          <p className="fine-print">{o.cost_report.note}</p>
+        </>
+      )}
       <section className="panel order-actions">
         <div>
           <h2>
@@ -655,6 +788,38 @@ export function OrderDetail() {
             </div>
             {commercial && <span className="count">{money(item.snapshot.total_cents)}</span>}
           </div>
+          {(o.manufacturing_jobs ?? []).some((job: Row) => job.order_item_id === item.id) && (
+            <>
+              <h3>Jobs de impressão</h3>
+              <div className="steps-list">
+                {(o.manufacturing_jobs ?? [])
+                  .filter((job: Row) => job.order_item_id === item.id)
+                  .map((printJob: Row) => (
+                    <div className={`step-row ${printJob.status === 'COMPLETED' ? 'done' : ''}`} key={printJob.id}>
+                      <span className="step-number">{printJob.position}</span>
+                      <div className="step-description">
+                        <strong>{printJob.printer_name} · {printJob.material_name}</strong>
+                        <small>
+                          Previsto: {Number(printJob.estimated_material_amount).toLocaleString('pt-BR')} {printJob.material_unit} · {(Number(printJob.estimated_minutes) / 60).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} h
+                        </small>
+                        {(printJob.actual_material_amount != null || printJob.actual_minutes != null) && (
+                          <small>
+                            Real: {printJob.actual_material_amount == null ? '—' : `${Number(printJob.actual_material_amount).toLocaleString('pt-BR')} ${printJob.material_unit}`} · {printJob.actual_minutes == null ? '—' : `${(Number(printJob.actual_minutes) / 60).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} h`}
+                          </small>
+                        )}
+                        {printJob.notes && <small className="preserve">{printJob.notes}</small>}
+                      </div>
+                      <span className="count">{jobStatusLabels[printJob.status] ?? printJob.status}</span>
+                      {(user!.role === 'ADMIN' || user!.role === 'TEAM') &&
+                        !['COMPLETED', 'FAILED', 'CANCELLED'].includes(printJob.status) && (
+                          <button className="small" onClick={() => setJob(printJob)}>Atualizar job</button>
+                        )}
+                    </div>
+                  ))}
+              </div>
+            </>
+          )}
+          <h3>Etapas de produção</h3>
           <div className="steps-list">
             {o.steps
               .filter((s: Row) => s.order_item_id === item.id)
@@ -724,6 +889,7 @@ export function OrderDetail() {
       )}
       <FileLinks entity="orderId" id={id!} />
       {pay && <PaymentForm order={o} onClose={() => setPay(false)} onSaved={reload} />}{' '}
+      {job && <JobEditor job={job} onClose={() => setJob(null)} onSaved={reload} />}{' '}
       {step && <StepEditor step={step} onClose={() => setStep(null)} onSaved={reload} />}{' '}
       {cancel && (
         <Modal title="Cancelar pedido" onClose={() => setCancel(false)}>

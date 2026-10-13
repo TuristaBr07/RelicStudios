@@ -125,7 +125,7 @@ test('fluxo principal: login, cliente, orçamento, pedido e pagamento', { timeou
     const order = await call('POST', `/api/quotes/${quote.id}/order`, {}, 201);
     assert.match(order.code, /^PED-\d{4}-\d{4}$/);
     const [job] = await db.query(
-      'SELECT output_quantity,estimated_minutes FROM relic.manufacturing_jobs WHERE order_item_id IN (SELECT id FROM relic.order_items WHERE order_id=$1)',
+      'SELECT id,status,version,output_quantity,estimated_minutes FROM relic.manufacturing_jobs WHERE order_item_id IN (SELECT id FROM relic.order_items WHERE order_id=$1)',
       [order.id],
     );
     assert.equal(job?.output_quantity, 2);
@@ -164,9 +164,67 @@ test('fluxo principal: login, cliente, orçamento, pedido e pagamento', { timeou
       },
       201,
     );
-    const detail = await call('GET', `/api/orders/${order.id}`);
+    let detail = await call('GET', `/api/orders/${order.id}`);
     assert.equal(detail.status, 'CONFIRMED');
     assert.equal(detail.received_cents, order.deposit_cents);
+    await call('PATCH', `/api/orders/${order.id}/status`, {
+      status: 'IN_PRODUCTION',
+      version: detail.version,
+      reason: '',
+    });
+
+    let jobState = (await call('GET', `/api/manufacturing/jobs?orderId=${order.id}`))[0];
+    jobState = await call('PATCH', `/api/manufacturing/jobs/${job!.id}`, {
+      version: jobState.version,
+      status: 'READY',
+      actualMaterialAmount: null,
+      actualMinutes: null,
+      notes: '',
+    });
+    jobState = await call('PATCH', `/api/manufacturing/jobs/${job!.id}`, {
+      version: jobState.version,
+      status: 'RUNNING',
+      actualMaterialAmount: 105,
+      actualMinutes: 250,
+      notes: 'Job em execução',
+    });
+    jobState = await call('PATCH', `/api/manufacturing/jobs/${job!.id}`, {
+      version: jobState.version,
+      status: 'COMPLETED',
+      actualMaterialAmount: 110,
+      actualMinutes: 270,
+      notes: 'Job concluído',
+    });
+    assert.equal(jobState.status, 'COMPLETED');
+
+    detail = await call('GET', `/api/orders/${order.id}`);
+    let preparation = detail.steps.find((step: any) => step.stage === 'PREPARATION');
+    preparation = await call('PATCH', `/api/production/${preparation.id}`, {
+      version: preparation.version,
+      status: 'IN_PROGRESS',
+      assignedTo: null,
+      estimatedHours: Number(preparation.estimated_hours),
+      actualHours: 0.5,
+      notes: '',
+      position: preparation.position,
+    });
+    preparation = await call('PATCH', `/api/production/${preparation.id}`, {
+      version: preparation.version,
+      status: 'COMPLETED',
+      assignedTo: null,
+      estimatedHours: Number(preparation.estimated_hours),
+      actualHours: 0.75,
+      notes: 'Modelagem concluída',
+      position: preparation.position,
+    });
+    assert.equal(preparation.status, 'COMPLETED');
+
+    detail = await call('GET', `/api/orders/${order.id}`);
+    assert(detail.cost_report.actualCostCents > 0);
+    assert(detail.cost_report.items[0].manufacturingActualCents > 0);
+    assert(detail.cost_report.items[0].laborActualCents > 0);
+    assert.equal(detail.manufacturing_jobs[0].status, 'COMPLETED');
+    assert.equal(detail.manufacturing_jobs[0].snapshot, undefined);
   } finally {
     await app.close();
     await db.close();

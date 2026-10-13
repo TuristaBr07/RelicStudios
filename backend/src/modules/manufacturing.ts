@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { Decimal } from 'decimal.js';
 import type { FastifyInstance } from 'fastify';
 import type { Sql, Row } from '../lib/db.js';
 import { roles } from './auth.js';
@@ -65,6 +66,44 @@ function redactMaterial(row: Row, role: string) {
   delete safe.package_price_cents;
   delete safe.unit_cost_cents;
   return safe;
+}
+
+const moneyRound = (value: Decimal.Value) =>
+  new Decimal(value).toDecimalPlaces(0, Decimal.ROUND_HALF_UP).toNumber();
+
+export function calculateActualManufacturingCost(row: Row) {
+  const cost = row.snapshot?.snapshot ?? {};
+  const materialAmount =
+    row.actual_material_amount === null || row.actual_material_amount === undefined
+      ? 0
+      : Number(row.actual_material_amount);
+  const actualMinutes =
+    row.actual_minutes === null || row.actual_minutes === undefined ? 0 : Number(row.actual_minutes);
+  const hours = new Decimal(actualMinutes).div(60);
+  const packageQuantity = Number(cost.packageQuantity ?? 0);
+  const packagePriceCents = Number(cost.packagePriceCents ?? 0);
+  const machineHourlyCents = Number(cost.machineHourlyCents ?? 0);
+  const maintenanceReservePercent = Number(cost.maintenanceReservePercent ?? 0);
+  const averagePowerWatts = cost.averagePowerWatts == null ? null : Number(cost.averagePowerWatts);
+  const electricityKwh = Number(cost.electricityKwh ?? 0);
+  const materialCents =
+    packageQuantity > 0
+      ? moneyRound(new Decimal(materialAmount).mul(packagePriceCents).div(packageQuantity))
+      : 0;
+  const machineCents = moneyRound(hours.mul(machineHourlyCents));
+  const maintenanceCents = moneyRound(
+    new Decimal(machineCents).mul(maintenanceReservePercent).div(100),
+  );
+  const energyCents = averagePowerWatts
+    ? moneyRound(hours.mul(averagePowerWatts).div(1000).mul(electricityKwh).mul(100))
+    : 0;
+  return {
+    materialCents,
+    machineCents,
+    maintenanceCents,
+    energyCents,
+    totalCents: materialCents + machineCents + maintenanceCents + energyCents,
+  };
 }
 
 const printerSelect = `
@@ -272,7 +311,7 @@ export function manufacturingRoutes(app: FastifyInstance, db: Sql) {
               j.version,j.created_at,j.updated_at,
               o.id AS order_id,o.code AS order_code,
               i.snapshot->>'description' AS item_description,
-              p.name AS printer_name,m.name AS material_name
+              p.name AS printer_name,m.name AS material_name,m.unit AS material_unit
          FROM relic.manufacturing_jobs j
          JOIN relic.order_items i ON i.id=j.order_item_id
          JOIN relic.orders o ON o.id=i.order_id
@@ -283,5 +322,88 @@ export function manufacturingRoutes(app: FastifyInstance, db: Sql) {
         LIMIT 500`,
       values,
     );
+  });
+
+  app.patch('/api/manufacturing/jobs/:id', async (req) => {
+    roles(req, 'ADMIN', 'TEAM');
+    const id = getId(req.params);
+    const b = z
+      .object({
+        version: z.number().int().positive(),
+        status: z.enum(['PLANNED', 'READY', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED']),
+        actualMaterialAmount: z.number().min(0).max(100000000).nullable(),
+        actualMinutes: z.number().int().min(0).max(100000000).nullable(),
+        notes: z.string().max(4000).default(''),
+      })
+      .strict()
+      .parse(req.body);
+    return db.transaction(async (tx) => {
+      const [job] = await tx.query(
+        'SELECT * FROM relic.manufacturing_jobs WHERE id=$1 FOR UPDATE',
+        [id],
+      );
+      ensure(job, 'Job de fabricação não encontrado.', 404);
+      ensure(job.version === b.version, 'O job mudou. Atualize a página antes de salvar.', 409);
+      ensure(
+        !['COMPLETED', 'FAILED', 'CANCELLED'].includes(job.status),
+        'Job encerrado não pode ser alterado.',
+      );
+      const [orderItem] = await tx.query('SELECT order_id FROM relic.order_items WHERE id=$1', [
+        job.order_item_id,
+      ]);
+      ensure(orderItem, 'Item do pedido não encontrado.', 404);
+      const [order] = await tx.query('SELECT status FROM relic.orders WHERE id=$1 FOR UPDATE', [
+        orderItem.order_id,
+      ]);
+      ensure(order && !['DELIVERED', 'CANCELLED'].includes(order.status), 'Pedido encerrado.');
+      if (b.status !== job.status) {
+        const transitions: Record<string, string[]> = {
+          PLANNED: ['READY', 'CANCELLED'],
+          READY: ['RUNNING', 'CANCELLED'],
+          RUNNING: ['COMPLETED', 'FAILED', 'CANCELLED'],
+        };
+        ensure(transitions[job.status]?.includes(b.status), 'Transição do job não permitida.');
+      }
+      if (b.status === 'CANCELLED') roles(req, 'ADMIN');
+      if (['RUNNING', 'COMPLETED', 'FAILED'].includes(b.status))
+        ensure(order.status === 'IN_PRODUCTION', 'Inicie a produção do pedido antes do job.');
+      if (['COMPLETED', 'FAILED'].includes(b.status)) {
+        ensure(
+          b.actualMaterialAmount !== null && b.actualMinutes !== null,
+          'Informe material e tempo reais antes de encerrar o job.',
+        );
+      }
+      const [updated] = await tx.query(
+        `UPDATE relic.manufacturing_jobs SET
+           status=$1,actual_material_amount=$2,actual_minutes=$3,notes=$4,
+           started_at=CASE WHEN $1 IN ('RUNNING','COMPLETED','FAILED') THEN coalesce(started_at,now()) ELSE started_at END,
+           completed_at=CASE WHEN $1 IN ('COMPLETED','FAILED','CANCELLED') THEN now() ELSE completed_at END
+         WHERE id=$5 RETURNING *`,
+        [b.status, b.actualMaterialAmount, b.actualMinutes, b.notes, id],
+      );
+      const actualCost = calculateActualManufacturingCost(updated!);
+      await audit(tx, req.user!.id, 'MANUFACTURING_JOB_UPDATED', 'manufacturing_jobs', id, {
+        from: job.status,
+        to: b.status,
+        estimatedMaterialAmount: Number(job.estimated_material_amount),
+        actualMaterialAmount: b.actualMaterialAmount,
+        estimatedMinutes: Number(job.estimated_minutes),
+        actualMinutes: b.actualMinutes,
+        actualCostCents: actualCost.totalCents,
+      });
+      const [result] = await tx.query(
+        `SELECT j.id,j.order_item_id,j.printer_id,j.material_id,j.technology_code,j.position,
+                j.status,j.output_quantity,j.estimated_material_amount,j.actual_material_amount,
+                j.estimated_minutes,j.actual_minutes,j.notes,j.started_at,j.completed_at,
+                j.version,j.created_at,j.updated_at,p.name AS printer_name,m.name AS material_name,
+                m.unit AS material_unit
+           FROM relic.manufacturing_jobs j
+           JOIN relic.printers p ON p.id=j.printer_id
+           JOIN relic.materials m ON m.id=j.material_id
+          WHERE j.id=$1`,
+        [id],
+      );
+      return result;
+    });
   });
 }

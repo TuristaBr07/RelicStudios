@@ -4,6 +4,7 @@ import type { Sql, Row } from '../lib/db.js';
 import { roles } from './auth.js';
 import { audit, ensure, addDays, today } from '../lib/core.js';
 import { getId, uuid } from './catalog.js';
+import { calculateActualManufacturingCost } from './manufacturing.js';
 export async function received(db: Sql, id: string): Promise<number> {
   const [r] = await db.query(
     "SELECT coalesce(sum(CASE WHEN kind='REFUND' THEN -amount_cents ELSE amount_cents END),0)::integer AS value FROM relic.payments WHERE order_id=$1 AND status='RECEIVED'",
@@ -34,6 +35,74 @@ const teamOrder = (order: Row) => ({
     leadDays: order.commercial_snapshot?.leadDays ?? 0,
   },
 });
+
+const centsFromHours = (hours: number, hourlyReais: number) =>
+  Math.round(hours * hourlyReais * 100);
+
+function laborRate(stage: string, policy: Row) {
+  if (stage === 'PRINTING') return 0;
+  if (stage === 'PREPARATION') return Number(policy.modelingHourly ?? 0);
+  if (['PRIMING', 'PAINTING'].includes(stage)) return Number(policy.paintingHourly ?? 0);
+  return Number(policy.finishingHourly ?? 0);
+}
+
+function buildCostReport(order: Row, items: Row[], steps: Row[], jobs: Row[]) {
+  const policy = order.commercial_snapshot?.policy?.settings ?? {};
+  const overheadPercent = Number(policy.overheadPercent ?? 0);
+  const reports = items.map((item) => {
+    const calculation = item.snapshot?.calculation ?? {};
+    const breakdown = calculation.batchBreakdown ?? {};
+    const itemJobs = jobs.filter((job) => job.order_item_id === item.id);
+    const itemSteps = steps.filter((step) => step.order_item_id === item.id);
+    const manufacturing = itemJobs.reduce(
+      (sum, job) => sum + calculateActualManufacturingCost(job).totalCents,
+      0,
+    );
+    const labor = itemSteps.reduce(
+      (sum, step) =>
+        sum + centsFromHours(Number(step.actual_hours ?? 0), laborRate(step.stage, policy)),
+      0,
+    );
+    const complementary =
+      Number(breakdown.consumables ?? 0) +
+      Number(breakdown.packaging ?? 0) +
+      Number(breakdown.extras ?? 0);
+    const direct = manufacturing + labor + complementary;
+    const overhead = Math.round((direct * overheadPercent) / 100);
+    const actual = direct + overhead;
+    const estimated = Number(calculation.batchCostCents ?? 0);
+    return {
+      orderItemId: item.id,
+      description: item.snapshot?.description ?? '',
+      estimatedCostCents: estimated,
+      actualCostCents: actual,
+      varianceCents: actual - estimated,
+      manufacturingActualCents: manufacturing,
+      laborActualCents: labor,
+      complementaryQuotedCents: complementary,
+      overheadActualCents: overhead,
+      jobsCompleted: itemJobs.filter((job) => ['COMPLETED', 'FAILED', 'CANCELLED'].includes(job.status))
+        .length,
+      jobsTotal: itemJobs.length,
+      stepsCompleted: itemSteps.filter((step) => ['COMPLETED', 'CANCELLED'].includes(step.status)).length,
+      stepsTotal: itemSteps.length,
+    };
+  });
+  const actualCostCents = reports.reduce((sum, item) => sum + item.actualCostCents, 0);
+  const estimatedCostCents = Number(order.cost_cents ?? 0);
+  const subtotalCents = Number(order.commercial_snapshot?.subtotalCents ?? order.total_cents ?? 0);
+  return {
+    isFinal: order.status === 'DELIVERED',
+    estimatedCostCents,
+    actualCostCents,
+    varianceCents: actualCostCents - estimatedCostCents,
+    actualProfitCents: subtotalCents - actualCostCents,
+    subtotalCents,
+    items: reports,
+    note: 'Material e tempo reais vêm dos jobs; horas reais vêm da produção. Consumíveis, embalagem e extras permanecem pelos valores aprovados até existir apontamento específico. A reserva de impressão não é tratada como gasto realizado.',
+  };
+}
+
 export async function orderDetail(db: Sql, id: string, financial = true) {
   const [o] = await db.query('SELECT * FROM relic.orders WHERE id=$1', [id]);
   ensure(o, 'Pedido não encontrado.', 404);
@@ -45,11 +114,23 @@ export async function orderDetail(db: Sql, id: string, financial = true) {
     "SELECT * FROM relic.order_items WHERE order_id=$1 ORDER BY (snapshot->>'position')::integer",
     [id],
   );
+  const jobs = await db.query(
+    `SELECT j.*,p.name AS printer_name,m.name AS material_name,m.unit AS material_unit
+       FROM relic.manufacturing_jobs j
+       JOIN relic.order_items i ON i.id=j.order_item_id
+       JOIN relic.printers p ON p.id=j.printer_id
+       JOIN relic.materials m ON m.id=j.material_id
+      WHERE i.order_id=$1
+      ORDER BY (i.snapshot->>'position')::integer,j.position`,
+    [id],
+  );
+  const operationalJobs = jobs.map(({ snapshot: _snapshot, created_by: _createdBy, ...job }) => job);
   if (!financial)
     return {
       ...teamOrder(o!),
       items: items.map((item) => ({ ...item, snapshot: operationalSnapshot(item.snapshot) })),
       steps: steps.map((step) => ({ ...step, snapshot: operationalSnapshot(step.snapshot) })),
+      manufacturing_jobs: operationalJobs,
       payments: [],
     };
   const paid = await received(db, id);
@@ -60,6 +141,8 @@ export async function orderDetail(db: Sql, id: string, financial = true) {
     deposit_pending_cents: Math.max(0, o.deposit_cents - paid),
     items,
     steps,
+    manufacturing_jobs: operationalJobs,
+    cost_report: buildCostReport(o!, items, steps, jobs),
     payments: await db.query(
       'SELECT * FROM relic.payments WHERE order_id=$1 ORDER BY created_at DESC',
       [id],
