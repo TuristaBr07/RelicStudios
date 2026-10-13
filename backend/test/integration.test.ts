@@ -82,8 +82,17 @@ test('fluxo principal: login, cliente, orçamento, pedido e pagamento', { timeou
           outputQuantity: 2,
         },
       ],
-      finishingHours: 1,
-      paintingHours: 2,
+      laborEstimates: {
+        finishing: {
+          mode: 'COMPONENTS',
+          components: [
+            { label: 'Lixamento', hours: 0.5 },
+            { label: 'Correções', hours: 0.5 },
+          ],
+        },
+        painting: { mode: 'PERT', optimistic: 1, mostLikely: 2, pessimistic: 4 },
+        modeling: { mode: 'DIRECT', hours: 0.5 },
+      },
       consumables: 8,
       packaging: 10,
     };
@@ -121,6 +130,26 @@ test('fluxo principal: login, cliente, orçamento, pedido e pagamento', { timeou
     );
     assert.equal(job?.output_quantity, 2);
     assert.equal(job?.estimated_minutes, 240);
+    const [paintingStep] = await db.query(
+      "SELECT id,status,position,version,estimated_hours FROM relic.production_steps WHERE order_id=$1 AND stage='PAINTING'",
+      [order.id],
+    );
+    assert.equal(Number(paintingStep?.estimated_hours), 4.34);
+    const tamperedEstimate = await call(
+      'PATCH',
+      `/api/production/${paintingStep!.id}`,
+      {
+        version: paintingStep!.version,
+        status: paintingStep!.status,
+        assignedTo: null,
+        estimatedHours: Number(paintingStep!.estimated_hours) + 1,
+        actualHours: 0,
+        notes: '',
+        position: paintingStep!.position,
+      },
+      422,
+    );
+    assert.match(tamperedEstimate.error, /baseline/);
 
     await call(
       'POST',

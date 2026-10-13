@@ -30,6 +30,53 @@ export const policySchema = z
 export type Policy = z.infer<typeof policySchema>;
 
 const value = z.number().finite().min(0).max(100000);
+const laborComponentSchema = z
+  .object({
+    label: z.string().trim().min(2).max(120),
+    hours: value,
+  })
+  .strict();
+
+export const laborEstimateSchema = z
+  .union([
+    z.object({ mode: z.literal('DIRECT'), hours: value }).strict(),
+    z
+      .object({
+        mode: z.literal('COMPONENTS'),
+        components: z.array(laborComponentSchema).min(1).max(20),
+      })
+      .strict(),
+    z
+      .object({
+        mode: z.literal('PERT'),
+        optimistic: value,
+        mostLikely: value,
+        pessimistic: value,
+      })
+      .strict(),
+  ])
+  .superRefine((estimate, ctx) => {
+    if (
+      estimate.mode === 'PERT' &&
+      !(estimate.optimistic <= estimate.mostLikely && estimate.mostLikely <= estimate.pessimistic)
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'A estimativa deve seguir otimista ≤ provável ≤ pessimista.',
+      });
+    }
+  });
+export type LaborEstimate = z.infer<typeof laborEstimateSchema>;
+
+const laborEstimatesSchema = z
+  .object({
+    finishing: laborEstimateSchema.optional(),
+    painting: laborEstimateSchema.optional(),
+    modeling: laborEstimateSchema.optional(),
+  })
+  .strict()
+  .default({});
+
 const manufacturingJobSchema = z
   .object({
     printerId: z.uuid(),
@@ -43,6 +90,7 @@ const manufacturingJobSchema = z
 export const pricingInputSchema = z
   .object({
     manufacturingJobs: z.array(manufacturingJobSchema).max(20).default([]),
+    laborEstimates: laborEstimatesSchema,
     finishingHours: value.default(0),
     paintingHours: value.default(0),
     modelingHours: value.default(0),
@@ -99,6 +147,34 @@ const cents = (v: Decimal.Value) =>
 const round = (v: Decimal.Value) =>
   new Decimal(v).toDecimalPlaces(0, Decimal.ROUND_HALF_UP).toNumber();
 const ceil = (v: Decimal.Value) => new Decimal(v).ceil().toNumber();
+
+export function resolveLaborEstimate(estimate: LaborEstimate | undefined, fallbackHours = 0) {
+  if (!estimate) return { mode: 'DIRECT' as const, hours: fallbackHours };
+  if (estimate.mode === 'DIRECT') return estimate;
+  if (estimate.mode === 'COMPONENTS') {
+    const hours = new Decimal(
+      estimate.components.reduce((sum, component) => sum + component.hours, 0),
+    )
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+      .toNumber();
+    return { ...estimate, hours };
+  }
+  const hours = new Decimal(estimate.optimistic)
+    .plus(new Decimal(estimate.mostLikely).mul(4))
+    .plus(estimate.pessimistic)
+    .div(6)
+    .toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+    .toNumber();
+  return { ...estimate, hours };
+}
+
+export function resolveLaborEstimates(input: PricingInput) {
+  return {
+    finishing: resolveLaborEstimate(input.laborEstimates.finishing, input.finishingHours),
+    painting: resolveLaborEstimate(input.laborEstimates.painting, input.paintingHours),
+    modeling: resolveLaborEstimate(input.laborEstimates.modeling, input.modelingHours),
+  };
+}
 
 export async function resolveManufacturingJobs(
   db: Sql,
@@ -207,9 +283,20 @@ export function calculate(
   const maintenance = manufacturingJobs.reduce((sum, job) => sum + job.maintenanceCents, 0);
   const energy = manufacturingJobs.reduce((sum, job) => sum + job.energyCents, 0);
   const reserve = manufacturingJobs.reduce((sum, job) => sum + job.reserveCents, 0);
-  const finishing = cents(new Decimal(input.finishingHours).mul(policy.finishingHourly).mul(quantity));
-  const painting = cents(new Decimal(input.paintingHours).mul(policy.paintingHourly).mul(quantity));
-  const modeling = cents(new Decimal(input.modelingHours).mul(policy.modelingHourly));
+  const laborEstimates = resolveLaborEstimates(input);
+  const effectiveInput: PricingInput = {
+    ...input,
+    finishingHours: laborEstimates.finishing.hours,
+    paintingHours: laborEstimates.painting.hours,
+    modelingHours: laborEstimates.modeling.hours,
+  };
+  const finishing = cents(
+    new Decimal(laborEstimates.finishing.hours).mul(policy.finishingHourly).mul(quantity),
+  );
+  const painting = cents(
+    new Decimal(laborEstimates.painting.hours).mul(policy.paintingHourly).mul(quantity),
+  );
+  const modeling = cents(new Decimal(laborEstimates.modeling.hours).mul(policy.modelingHourly));
   const consumables = cents(new Decimal(input.consumables).mul(quantity));
   const packaging = cents(new Decimal(input.packaging).mul(quantity));
   const extras = cents(new Decimal(input.extras).mul(quantity));
@@ -307,10 +394,11 @@ export function calculate(
   );
 
   return {
-    input,
+    input: effectiveInput,
     policy,
     quantity,
     manufacturingJobs,
+    laborEstimates,
     breakdown: perUnit,
     batchBreakdown,
     costCents: ceil(new Decimal(batchCost).div(quantity)),

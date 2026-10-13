@@ -365,7 +365,7 @@ export function StepEditor({
   const team = useData<Row[]>('/team');
   const [status, setStatus] = useState(step.status),
     [assignedTo, setAssignedTo] = useState(step.assigned_to ?? ''),
-    [estimatedHours, setEstimated] = useState(Number(step.estimated_hours)),
+    [estimatedHours] = useState(Number(step.estimated_hours)),
     [actualHours, setActual] = useState(Number(step.actual_hours)),
     [notes, setNotes] = useState(step.notes),
     [position, setPosition] = useState(step.position);
@@ -426,15 +426,11 @@ export function StepEditor({
               ))}
             </select>
           </Field>
-          <Field label="Horas estimadas">
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              max="100000"
-              value={estimatedHours}
-              onChange={(e) => setEstimated(num(e.target.value))}
-            />
+          <Field
+            label="Horas previstas"
+            hint="Baseline preservada do orçamento. Alterar horas reais não recalcula o preço vendido."
+          >
+            <input type="number" step="0.01" min="0" value={estimatedHours} readOnly />
           </Field>
           <Field label="Horas reais">
             <input
@@ -464,6 +460,12 @@ export function StepEditor({
         <Field label="Observações da produção">
           <textarea maxLength={4000} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </Field>
+        <p className="fine-print">
+          Previsto {estimatedHours.toLocaleString('pt-BR')} h · real {actualHours.toLocaleString('pt-BR')} h
+          {actualHours > 0
+            ? ` · diferença ${(actualHours - estimatedHours) >= 0 ? '+' : ''}${(actualHours - estimatedHours).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} h`
+            : ' · aguardando apontamento real'}.
+        </p>
         {step.started_at && (
           <p className="fine-print">
             Iniciada em {date(step.started_at)}. O início e a conclusão são registrados
@@ -500,7 +502,12 @@ export function OrderDetail() {
   if (loading) return <Loading />;
   if (!o) return <ErrorBox error={error} />;
   const complete = o.steps.filter((s: Row) => ['COMPLETED', 'CANCELLED'].includes(s.status)).length;
+  const estimatedHours = o.steps.reduce(
+    (sum: number, s: Row) => sum + Number(s.estimated_hours || 0),
+    0,
+  );
   const actualHours = o.steps.reduce((sum: number, s: Row) => sum + Number(s.actual_hours || 0), 0);
+  const hoursVariance = actualHours - estimatedHours;
   const change = (status: string) =>
     void action.run(async () => {
       await api(`/orders/${id}/status`, send('PATCH', { status, version: o.version, reason }));
@@ -576,6 +583,15 @@ export function OrderDetail() {
           label="Etapas concluídas"
           value={`${complete} / ${o.steps.length}`}
           detail="Inclui etapas canceladas com justificativa"
+        />
+        <Metric
+          label="Horas previstas / reais"
+          value={`${estimatedHours.toLocaleString('pt-BR')} / ${actualHours.toLocaleString('pt-BR')} h`}
+          detail={
+            actualHours > 0
+              ? `Diferença ${hoursVariance >= 0 ? '+' : ''}${hoursVariance.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} h`
+              : 'Baseline do orçamento; aguardando apontamentos reais'
+          }
         />
       </div>
       <section className="panel order-actions">
@@ -653,6 +669,16 @@ export function OrderDetail() {
                       {s.assignee_name ?? 'Sem responsável'} · {Number(s.actual_hours)} h reais /{' '}
                       {Number(s.estimated_hours)} h previstas
                     </small>
+                    {Number(s.actual_hours) > 0 && (
+                      <small>
+                        Diferença{' '}
+                        {Number(s.actual_hours) - Number(s.estimated_hours) >= 0 ? '+' : ''}
+                        {(Number(s.actual_hours) - Number(s.estimated_hours)).toLocaleString('pt-BR', {
+                          maximumFractionDigits: 2,
+                        })}{' '}
+                        h
+                      </small>
+                    )}
                     {s.started_at && (
                       <small>
                         Início: {date(s.started_at)}
@@ -813,6 +839,13 @@ export function Production() {
                   <Clock size={14} /> {Number(s.actual_hours)} / {Number(s.estimated_hours)} h
                 </span>
               </div>
+              <small>
+                {Number(s.actual_hours) > 0
+                  ? `Diferença ${Number(s.actual_hours) - Number(s.estimated_hours) >= 0 ? '+' : ''}${(
+                      Number(s.actual_hours) - Number(s.estimated_hours)
+                    ).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} h`
+                  : 'Aguardando apontamento de horas reais'}
+              </small>
               <footer>
                 <small>Entrega {date(s.due_date)}</small>
                 {canEdit && !['COMPLETED', 'CANCELLED'].includes(s.status) && (

@@ -102,7 +102,7 @@ Potência nominal não é tratada como consumo médio. O campo de consumo médio
 
 Materiais são cadastrados na unidade determinada pela tecnologia. O sistema deriva o custo unitário da quantidade e do preço da embalagem e preserva um percentual separado para perdas.
 
-A estrutura `manufacturing_jobs` representa jobs físicos vinculados a itens de pedidos, com impressora, material, quantidade produzida, material e tempo estimados/reais. A criação automática desses jobs será integrada à calculadora e aos pedidos na próxima etapa.
+A estrutura `manufacturing_jobs` representa jobs físicos vinculados a itens de pedidos, com impressora, material, quantidade produzida, material e tempo estimados/reais. Novos pedidos materializam automaticamente os jobs aprovados no orçamento.
 
 ## Calculadora MSLA/FDM
 
@@ -114,6 +114,14 @@ Modelagem é tratada como custo único do item/lote. Pintura e acabamento perman
 
 Orçamentos históricos continuam íntegros. Uma revisão de orçamento criada no modelo antigo exige recálculo explícito no modelo novo, evitando converter automaticamente custos genéricos em materiais ou impressoras que não existiam no snapshot original.
 
+## Estimativa assistida de trabalho
+
+Acabamento, pintura e modelagem podem ser estimados de três formas: horas diretas, soma de etapas ou três pontos PERT (`(O + 4M + P) / 6`). Os componentes e premissas ficam preservados no snapshot do orçamento.
+
+Acabamento e pintura permanecem por unidade; modelagem continua sendo um custo único do lote. Ao gerar o pedido, as horas efetivas aprovadas alimentam as etapas de produção como baseline. A produção registra horas reais separadamente e mostra a diferença previsto × realizado; alterar horas reais nunca reabre nem recalcula o preço comercial aprovado.
+
+As horas previstas não podem ser sobrescritas pela tela operacional. Uma futura necessidade de replanejamento deve ter um conceito separado da baseline comercial, preservando o histórico original.
+
 ## Próxima evolução
 
-A próxima fase funcional será a estimativa assistida de pintura, acabamento e modelagem, comparando horas previstas e reais sem alterar automaticamente o preço de orçamentos já aprovados.
+A próxima fase funcional será consolidar produção e custo realizado, usando jobs e horas reais para analisar desvios sem modificar retroativamente orçamentos aprovados.

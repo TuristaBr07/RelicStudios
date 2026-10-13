@@ -31,6 +31,7 @@ import {
 
 export const defaultInput = {
   manufacturingJobs: [],
+  laborEstimates: {},
   finishingHours: 0,
   paintingHours: 0,
   modelingHours: 0,
@@ -48,6 +49,42 @@ export const defaultInput = {
 };
 
 const unitLabel = (unit: string) => (unit === 'ML' ? 'mL' : 'g');
+type LaborKind = 'finishing' | 'painting' | 'modeling';
+const laborMeta: Record<LaborKind, { title: string; field: string; scope: string; presets: string[] }> = {
+  finishing: {
+    title: 'Acabamento',
+    field: 'finishingHours',
+    scope: 'por unidade',
+    presets: ['Remoção de suportes', 'Lixamento', 'Correções e massa', 'Preparação para montagem'],
+  },
+  painting: {
+    title: 'Pintura',
+    field: 'paintingHours',
+    scope: 'por unidade',
+    presets: ['Preparação', 'Primer', 'Cores base', 'Sombras e luzes', 'Detalhes', 'Olhos / rosto', 'Finalização'],
+  },
+  modeling: {
+    title: 'Modelagem',
+    field: 'modelingHours',
+    scope: 'uma vez no lote',
+    presets: ['Referências e planejamento', 'Base / modelagem', 'Detalhamento', 'Cortes e encaixes', 'Preparação para impressão', 'Revisões'],
+  },
+};
+
+function previewLaborHours(estimate: Row, fallback = 0) {
+  if (!estimate || !estimate.mode) return fallback;
+  if (estimate.mode === 'DIRECT') return Number(estimate.hours ?? 0);
+  if (estimate.mode === 'COMPONENTS')
+    return Number(
+      (estimate.components ?? []).reduce(
+        (sum: number, component: Row) => sum + Number(component.hours ?? 0),
+        0,
+      ).toFixed(2),
+    );
+  return Number(
+    ((Number(estimate.optimistic ?? 0) + 4 * Number(estimate.mostLikely ?? 0) + Number(estimate.pessimistic ?? 0)) / 6).toFixed(2),
+  );
+}
 
 export function PricingEditor({
   policies,
@@ -141,6 +178,162 @@ export function PricingEditor({
     !!printers.data?.some((p) =>
       materials.data?.some((m) => m.technology_code === p.technology_code && m.active),
     );
+
+  function changeLabor(kind: LaborKind, estimate: Row) {
+    const meta = laborMeta[kind];
+    const hours = previewLaborHours(estimate, Number(input[meta.field] ?? 0));
+    setInput({
+      ...input,
+      laborEstimates: { ...(input.laborEstimates ?? {}), [kind]: estimate },
+      [meta.field]: hours,
+    });
+    setResult(null);
+  }
+
+  function laborEditor(kind: LaborKind) {
+    const meta = laborMeta[kind];
+    const fallback = Number(input[meta.field] ?? 0);
+    const estimate = (input.laborEstimates?.[kind] ?? { mode: 'DIRECT', hours: fallback }) as Row;
+    const hours = previewLaborHours(estimate, fallback);
+    const hourly = Number(policy.settings[`${kind}Hourly`]);
+    const switchMode = (mode: string) => {
+      if (mode === 'DIRECT') return changeLabor(kind, { mode, hours });
+      if (mode === 'PERT')
+        return changeLabor(kind, {
+          mode,
+          optimistic: hours,
+          mostLikely: hours,
+          pessimistic: hours,
+        });
+      return changeLabor(kind, {
+        mode: 'COMPONENTS',
+        components: meta.presets.map((label, index) => ({ label, hours: index === 0 ? hours : 0 })),
+      });
+    };
+    return (
+      <section className="panel" key={kind}>
+        <div className="panel-heading">
+          <div>
+            <h3>{meta.title}</h3>
+            <small>R$ {hourly.toLocaleString('pt-BR')}/h · {meta.scope}</small>
+          </div>
+          <strong>{hours.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} h</strong>
+        </div>
+        <Field label="Forma de estimar">
+          <select value={estimate.mode} onChange={(e) => switchMode(e.target.value)}>
+            <option value="DIRECT">Horas diretas</option>
+            <option value="COMPONENTS">Por etapas</option>
+            <option value="PERT">Três pontos (PERT)</option>
+          </select>
+        </Field>
+        {estimate.mode === 'DIRECT' && (
+          <Field label="Horas estimadas">
+            <input
+              type="number"
+              min="0"
+              max="100000"
+              step="0.01"
+              value={estimate.hours ?? 0}
+              onChange={(e) => changeLabor(kind, { mode: 'DIRECT', hours: num(e.target.value) })}
+            />
+          </Field>
+        )}
+        {estimate.mode === 'COMPONENTS' && (
+          <>
+            {(estimate.components ?? []).map((component: Row, index: number) => (
+              <div className="form-grid" key={`${kind}-${index}`}>
+                <Field label={`Etapa ${index + 1}`}>
+                  <input
+                    maxLength={120}
+                    value={component.label}
+                    onChange={(e) =>
+                      changeLabor(kind, {
+                        ...estimate,
+                        components: estimate.components.map((item: Row, current: number) =>
+                          current === index ? { ...item, label: e.target.value } : item,
+                        ),
+                      })
+                    }
+                  />
+                </Field>
+                <Field label="Horas">
+                  <input
+                    type="number"
+                    min="0"
+                    max="100000"
+                    step="0.01"
+                    value={component.hours}
+                    onChange={(e) =>
+                      changeLabor(kind, {
+                        ...estimate,
+                        components: estimate.components.map((item: Row, current: number) =>
+                          current === index ? { ...item, hours: num(e.target.value) } : item,
+                        ),
+                      })
+                    }
+                  />
+                </Field>
+                <button
+                  type="button"
+                  className="icon-button"
+                  disabled={estimate.components.length <= 1}
+                  aria-label={`Remover etapa ${index + 1}`}
+                  onClick={() =>
+                    changeLabor(kind, {
+                      ...estimate,
+                      components: estimate.components.filter((_: Row, current: number) => current !== index),
+                    })
+                  }
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              className="small"
+              disabled={(estimate.components ?? []).length >= 20}
+              onClick={() =>
+                changeLabor(kind, {
+                  ...estimate,
+                  components: [...estimate.components, { label: 'Nova etapa', hours: 0 }],
+                })
+              }
+            >
+              <Plus size={14} /> Adicionar etapa
+            </button>
+          </>
+        )}
+        {estimate.mode === 'PERT' && (
+          <div className="form-grid three">
+            {([
+              ['optimistic', 'Otimista'],
+              ['mostLikely', 'Mais provável'],
+              ['pessimistic', 'Pessimista'],
+            ] as const).map(([key, label]) => (
+              <Field key={key} label={`${label} (h)`}>
+                <input
+                  type="number"
+                  min="0"
+                  max="100000"
+                  step="0.01"
+                  value={estimate[key] ?? 0}
+                  onChange={(e) => changeLabor(kind, { ...estimate, [key]: num(e.target.value) })}
+                />
+              </Field>
+            ))}
+          </div>
+        )}
+        <p className="fine-print">
+          {estimate.mode === 'PERT'
+            ? 'PERT = (otimista + 4 × mais provável + pessimista) / 6. O servidor valida a ordem dos três valores.'
+            : estimate.mode === 'COMPONENTS'
+              ? 'A estimativa é a soma das etapas. Os componentes ficam preservados no orçamento para referência futura.'
+              : 'Use horas diretas quando a atividade já for previsível.'}
+        </p>
+      </section>
+    );
+  }
 
   return (
     <div className="pricing-layout">
@@ -312,25 +505,14 @@ export function PricingEditor({
         <section className="panel">
           <div className="section-title">
             <Clock size={19} />
-            <h3>Tempo artesanal</h3>
+            <h3>Estimativa de trabalho artesanal</h3>
           </div>
-          <div className="form-grid three">
-            {numberField(
-              'finishingHours',
-              'Acabamento por unidade (h)',
-              `R$ ${policy.settings.finishingHourly}/h`,
-            )}
-            {numberField(
-              'paintingHours',
-              'Pintura por unidade (h)',
-              `R$ ${policy.settings.paintingHourly}/h`,
-            )}
-            {numberField(
-              'modelingHours',
-              'Modelagem do projeto (h)',
-              `R$ ${policy.settings.modelingHourly}/h · cobrada uma vez no lote`,
-            )}
-          </div>
+          <p className="muted">
+            Escolha horas diretas, detalhe o trabalho por etapas ou use três pontos quando houver
+            incerteza. A estimativa aprovada vira a baseline da produção; horas reais não alteram o
+            preço do orçamento.
+          </p>
+          {(['finishing', 'painting', 'modeling'] as LaborKind[]).map(laborEditor)}
         </section>
 
         <section className="panel">

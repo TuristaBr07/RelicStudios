@@ -4,6 +4,7 @@ import {
   calculate,
   pricingInputSchema,
   policySchema,
+  resolveLaborEstimate,
   type ResolvedManufacturingJob,
 } from '../src/modules/pricing.js';
 
@@ -81,6 +82,43 @@ test('calcula lote MSLA e rateia custo compartilhado por unidade', () => {
   assert(result.minimumCents > result.costCents);
   assert(result.suggestedCents >= result.minimumCents);
   assert(result.batchProfitCents > 0);
+});
+
+test('estimativa assistida soma componentes e aplica PERT no servidor', () => {
+  const assisted = pricingInputSchema.parse({
+    ...input,
+    laborEstimates: {
+      finishing: {
+        mode: 'COMPONENTS',
+        components: [
+          { label: 'Lixamento', hours: 0.75 },
+          { label: 'Correções', hours: 1.25 },
+        ],
+      },
+      painting: { mode: 'PERT', optimistic: 5, mostLikely: 7, pessimistic: 10 },
+      modeling: { mode: 'DIRECT', hours: 2 },
+    },
+  });
+  const result = calculate(assisted, policy, 'COMMERCIAL', 2, [job]);
+  assert.equal(result.laborEstimates.finishing.hours, 2);
+  assert.equal(result.laborEstimates.painting.hours, 7.17);
+  assert.equal(result.laborEstimates.modeling.hours, 2);
+  assert.equal(result.input.paintingHours, 7.17);
+  assert.equal(result.batchBreakdown.finishing, 12000);
+  assert.equal(result.batchBreakdown.painting, 57360);
+  assert.equal(result.batchBreakdown.modeling, 10000);
+  assert.equal(
+    resolveLaborEstimate({ mode: 'PERT', optimistic: 5, mostLikely: 7, pessimistic: 10 }).hours,
+    7.17,
+  );
+  assert.throws(() =>
+    pricingInputSchema.parse({
+      ...input,
+      laborEstimates: {
+        painting: { mode: 'PERT', optimistic: 8, mostLikely: 4, pessimistic: 6 },
+      },
+    }),
+  );
 });
 
 test('modelagem é custo único do lote e pintura/acabamento escalam com quantidade', () => {

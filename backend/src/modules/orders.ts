@@ -328,6 +328,11 @@ export function orderRoutes(app: FastifyInstance, db: Sql) {
         !['COMPLETED', 'CANCELLED'].includes(s.status),
         'Etapa encerrada não pode ser modificada.',
       );
+      ensure(
+        Number(s.estimated_hours) === b.estimatedHours,
+        'As horas estimadas vêm do orçamento e permanecem como baseline. Registre apenas as horas reais.',
+        422,
+      );
       if (b.assignedTo) {
         const [u] = await tx.query('SELECT id FROM relic.users WHERE id=$1 AND active', [
           b.assignedTo,
@@ -408,7 +413,9 @@ export function orderRoutes(app: FastifyInstance, db: Sql) {
       await audit(tx, req.user!.id, 'PRODUCTION_UPDATED', 'production_steps', id, {
         from: s.status,
         to: b.status,
+        estimatedHours: Number(s.estimated_hours),
         actualHours: b.actualHours,
+        varianceHours: Number((b.actualHours - Number(s.estimated_hours)).toFixed(2)),
         assignedTo: b.assignedTo,
       });
       return r;
