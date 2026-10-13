@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'scripts/stage10.py'
+      - 'scripts/stage10_fix.py'
       - '.github/workflows/stage10.yml'
 
 permissions:
@@ -27,39 +28,11 @@ jobs:
           node-version: '24'
           cache: npm
       - name: Apply stage 10 changes
-        run: python3 scripts/stage10.py
-      - name: Fix embedded database compatible job lock
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path('backend/src/modules/manufacturing.ts')
-          text = p.read_text()
-          query_old = """        `SELECT j.*,i.order_id
-           FROM relic.manufacturing_jobs j
-           JOIN relic.order_items i ON i.id=j.order_item_id
-          WHERE j.id=$1 FOR UPDATE`,
-"""
-          query_new = """        'SELECT * FROM relic.manufacturing_jobs WHERE id=$1 FOR UPDATE',
-"""
-          order_old = """      const [order] = await tx.query('SELECT status FROM relic.orders WHERE id=$1 FOR UPDATE', [
-        job.order_id,
-      ]);
-"""
-          order_new = """      const [orderItem] = await tx.query('SELECT order_id FROM relic.order_items WHERE id=$1', [
-        job.order_item_id,
-      ]);
-      ensure(orderItem, 'Item do pedido não encontrado.', 404);
-      const [order] = await tx.query('SELECT status FROM relic.orders WHERE id=$1 FOR UPDATE', [
-        orderItem.order_id,
-      ]);
-"""
-          if query_old not in text or order_old not in text:
-              raise SystemExit('job lock patterns not found')
-          text = text.replace(query_old, query_new, 1).replace(order_old, order_new, 1)
-          p.write_text(text)
-          PY
+          python3 scripts/stage10.py
+          python3 scripts/stage10_fix.py
       - name: Remove temporary stage files
-        run: rm -f scripts/stage10.py .github/workflows/stage10.yml
+        run: rm -f scripts/stage10.py scripts/stage10_fix.py .github/workflows/stage10.yml
       - name: Install dependencies
         run: npm ci --include=dev
       - name: Verify typecheck tests and build
