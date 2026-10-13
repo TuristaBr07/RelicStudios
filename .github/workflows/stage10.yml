@@ -34,44 +34,29 @@ jobs:
           from pathlib import Path
           p = Path('backend/src/modules/manufacturing.ts')
           text = p.read_text()
-          old = """      const [job] = await tx.query(
-                `SELECT j.*,i.order_id
-                   FROM relic.manufacturing_jobs j
-                   JOIN relic.order_items i ON i.id=j.order_item_id
-                  WHERE j.id=$1 FOR UPDATE`,
-                [id],
-              );
-              ensure(job, 'Job de fabricação não encontrado.', 404);
-              ensure(job.version === b.version, 'O job mudou. Atualize a página antes de salvar.', 409);
-              ensure(
-                !['COMPLETED', 'FAILED', 'CANCELLED'].includes(job.status),
-                'Job encerrado não pode ser alterado.',
-              );
-              const [order] = await tx.query('SELECT status FROM relic.orders WHERE id=$1 FOR UPDATE', [
-                job.order_id,
-              ]);
-          """
-          new = """      const [job] = await tx.query(
-                'SELECT * FROM relic.manufacturing_jobs WHERE id=$1 FOR UPDATE',
-                [id],
-              );
-              ensure(job, 'Job de fabricação não encontrado.', 404);
-              ensure(job.version === b.version, 'O job mudou. Atualize a página antes de salvar.', 409);
-              ensure(
-                !['COMPLETED', 'FAILED', 'CANCELLED'].includes(job.status),
-                'Job encerrado não pode ser alterado.',
-              );
-              const [orderItem] = await tx.query('SELECT order_id FROM relic.order_items WHERE id=$1', [
-                job.order_item_id,
-              ]);
-              ensure(orderItem, 'Item do pedido não encontrado.', 404);
-              const [order] = await tx.query('SELECT status FROM relic.orders WHERE id=$1 FOR UPDATE', [
-                orderItem.order_id,
-              ]);
-          """
-          if old not in text:
-              raise SystemExit('job lock pattern not found')
-          p.write_text(text.replace(old, new, 1))
+          query_old = """        `SELECT j.*,i.order_id
+           FROM relic.manufacturing_jobs j
+           JOIN relic.order_items i ON i.id=j.order_item_id
+          WHERE j.id=$1 FOR UPDATE`,
+"""
+          query_new = """        'SELECT * FROM relic.manufacturing_jobs WHERE id=$1 FOR UPDATE',
+"""
+          order_old = """      const [order] = await tx.query('SELECT status FROM relic.orders WHERE id=$1 FOR UPDATE', [
+        job.order_id,
+      ]);
+"""
+          order_new = """      const [orderItem] = await tx.query('SELECT order_id FROM relic.order_items WHERE id=$1', [
+        job.order_item_id,
+      ]);
+      ensure(orderItem, 'Item do pedido não encontrado.', 404);
+      const [order] = await tx.query('SELECT status FROM relic.orders WHERE id=$1 FOR UPDATE', [
+        orderItem.order_id,
+      ]);
+"""
+          if query_old not in text or order_old not in text:
+              raise SystemExit('job lock patterns not found')
+          text = text.replace(query_old, query_new, 1).replace(order_old, order_new, 1)
+          p.write_text(text)
           PY
       - name: Remove temporary stage files
         run: rm -f scripts/stage10.py .github/workflows/stage10.yml
