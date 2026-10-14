@@ -130,6 +130,8 @@ Horas reais das etapas são convertidas em custo pelo snapshot da política do p
 
 O pedido apresenta custo previsto × realizado, variação e resultado sobre as peças. Consumíveis, embalagem e extras permanecem pelos valores aprovados até existir apontamento específico. A reserva de impressão continua sendo proteção comercial do orçamento e não é registrada como gasto realizado. Nenhum desvio operacional altera retroativamente o preço vendido.
 
-## Próxima evolução
+## Identidade visual
 
-A próxima fase funcional será aplicar a identidade visual oficial da Relic em login, aplicação e documentos, removendo a identidade provisória existente.
+A aplicação usa a identidade oficial da Relic Studios no login, nos fluxos públicos de acesso, na navegação interna e nos orçamentos comerciais. O símbolo do baú é o ativo principal da marca e a interface adota a paleta grafite, âmbar e creme utilizada nos materiais comerciais.
+
+A identidade visual é aplicada como uma camada de tema separada da base estrutural da interface, permitindo evoluir a apresentação sem misturar regras de negócio com estilização. O orçamento PDF utiliza a mesma marca, paleta e hierarquia visual para manter consistência entre o sistema interno e o documento enviado ao cliente.
