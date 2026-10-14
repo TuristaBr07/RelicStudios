@@ -33,4 +33,5 @@ test('gera orçamento comercial em PDF', async () => {
 
   assert(buffer.length > 1000);
   assert.equal(buffer.subarray(0, 5).toString('ascii'), '%PDF-');
+  assert.match(buffer.toString('latin1'), /\/Subtype \/Image\b/, 'PDF deve incluir a logo oficial');
 });

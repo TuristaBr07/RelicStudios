@@ -27,6 +27,11 @@ async function login(page: Page) {
   const password = process.env.RELIC_TEST_PASSWORD;
   if (!password) throw new Error('RELIC_TEST_PASSWORD ausente.');
   await page.goto('/');
+  const logo = page.locator('img.brand-logo');
+  await expect(logo).toBeVisible();
+  await expect
+    .poll(() => logo.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0))
+    .toBe(true);
   await page.getByLabel('E-mail').fill('qa@example.test');
   await page.getByLabel('Senha').fill(password);
   await page.getByRole('button', { name: /Entrar no estúdio/i }).click();
