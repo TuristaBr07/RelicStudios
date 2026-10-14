@@ -67,7 +67,7 @@ test('fluxo completo do estúdio pela interface', async ({ page }) => {
   await page.getByRole('link', { name: /Orçamentos/i }).click();
   await page.getByRole('link', { name: /Novo orçamento/i }).click();
   await expect(page.getByRole('heading', { name: 'Novo orçamento' })).toBeVisible();
-  await page.getByLabel('Cliente').selectOption({ label: clientName });
+  await page.getByLabel('Cliente', { exact: true }).selectOption({ label: clientName });
   await page.getByRole('button', { name: /Adicionar peça/i }).click();
 
   const pricingDialog = page.getByRole('dialog', { name: 'Calcular peça do orçamento' });
@@ -185,7 +185,7 @@ test('fluxo completo do estúdio pela interface', async ({ page }) => {
   await expect(page.getByRole('button', { name: /Marcar como pronto/i })).toBeEnabled();
   await page.getByRole('button', { name: /Marcar como pronto/i }).click();
   await expect(page.getByText('Pronto', { exact: true })).toBeVisible();
-  await expect(page.getByText('Custo realizado', { exact: true })).toBeVisible();
+  await expect(page.getByText(/^Custo realizado/)).toBeVisible();
 
   await page.getByRole('button', { name: /Registrar pagamento/i }).first().click();
   paymentDialog = page.getByRole('dialog', { name: 'Registrar pagamento' });
