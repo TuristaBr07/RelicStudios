@@ -56,13 +56,19 @@ Validações locais:
 - `npm run verify`: checagem de tipos, 11 testes e build aprovados.
 - `npm audit --audit-level=high`: zero vulnerabilidades reportadas.
 - PDF de teste gerado e inspecionado visualmente com a logo incorporada.
-- E2E local bloqueado pelo download inválido do Chromium; validação transferida para o GitHub Actions. Resultado remoto ainda pendente neste registro.
+- E2E local bloqueado pelo download inválido do Chromium; validação transferida para o GitHub Actions.
+
+Validação remota aprovada em 14/10/2026:
+
+- [CI 38589168265](https://github.com/TuristaBr07/RelicStudios/actions/runs/38589168265), commit `28aa02710360d8be78721c6233fa01bb24025fa6`: checagem de tipos, 11 testes, build, auditoria e E2E concluídos com sucesso.
+- O E2E percorreu login com imagem válida, material, cliente, cálculo, orçamento/PDF, aprovação, pedido, entrada, produção, custo realizado, saldo, entrega, financeiro e auditoria. Parte das transições operacionais usa a API autenticada no contexto do navegador.
+- Entrega rastreada na [PR #1](https://github.com/TuristaBr07/RelicStudios/pull/1). Consultar seu estado para confirmar a integração; alterações posteriores ao commit acima são documentação de resultado.
 
 ## Próximo ponto de retomada
 
-1. Concluir o CI da correção, incluindo o E2E que antes era ignorado. Corrigir falhas reveladas sem enfraquecer os testes.
-2. Registrar o resultado e a referência da entrega integrada.
-3. Conferir a homologação no Render antes de declarar o ambiente pronto para uso. O sucesso do CI não comprova implantação, configuração nem integridade do banco remoto.
+1. Confirmar a integração da PR #1 e o CI do commit atual da `main`.
+2. Conferir a homologação no Render antes de declarar o ambiente pronto para uso. O sucesso do CI não comprova implantação, configuração nem integridade do banco remoto.
+3. Depois da homologação, levantar lacunas dos fluxos existentes e priorizar uma próxima etapa delimitada. Não há novos requisitos funcionais definidos nesta retomada.
 
 ## Comandos de validação
 
