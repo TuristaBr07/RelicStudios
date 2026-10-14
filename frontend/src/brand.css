@@ -1,0 +1,372 @@
+:root {
+  --green: #25282e;
+  --dark: #202228;
+  --lime: #f2a51a;
+  --ink: #2d2e31;
+  --muted: #797873;
+  --line: #e3ddd4;
+  --paper: #fffdfa;
+  --bg: #f5f1ea;
+  --brand-charcoal: #25282e;
+  --brand-charcoal-deep: #1c1e23;
+  --brand-amber: #f2a51a;
+  --brand-amber-dark: #cc7a0b;
+  --brand-cream: #f5f1ea;
+  --brand-cream-light: #fffaf2;
+}
+
+body {
+  background: var(--brand-cream);
+  color: var(--ink);
+}
+
+button:focus-visible,
+a:focus-visible,
+summary:focus-visible {
+  outline-color: var(--brand-amber);
+}
+
+.primary {
+  background: var(--brand-amber-dark);
+  border-color: var(--brand-amber-dark);
+  color: #fff;
+}
+
+.primary:hover {
+  background: #b96908;
+  border-color: #b96908;
+  box-shadow: 0 4px 12px #7f47051f;
+}
+
+button:hover,
+.button:hover {
+  background: #fff4df;
+  border-color: #e0bd83;
+}
+
+.text-button,
+.text-link,
+.profit,
+.back-link,
+details summary,
+.production-card > header a,
+.file-link {
+  color: #a7600c;
+}
+
+.eyebrow,
+.section-title,
+.section-title h3,
+.item-number,
+.detail-strip b,
+.result-label,
+.circle-mark {
+  color: #a96816;
+}
+
+.sidebar {
+  background: var(--brand-charcoal-deep);
+  color: #f4efe7;
+}
+
+.brand {
+  color: #fff8ec;
+  letter-spacing: 0;
+  gap: 10px;
+}
+
+.brand > div {
+  font-size: 20px;
+  letter-spacing: 1.2px;
+  font-weight: 650;
+  line-height: 1;
+}
+
+.brand small {
+  color: #d5c7b5;
+  letter-spacing: 3.1px;
+  margin-top: 5px;
+}
+
+.brand-logo {
+  width: 45px;
+  height: 50px;
+  object-fit: contain;
+  flex: 0 0 auto;
+  filter: drop-shadow(0 3px 7px #0005);
+}
+
+.brand.large {
+  align-items: center;
+}
+
+.brand.large > div {
+  font-size: 25px;
+}
+
+.brand.large .brand-logo {
+  width: 58px;
+  height: 66px;
+}
+
+.brand.large small {
+  font-size: 9px;
+  letter-spacing: 4px;
+}
+
+.nav-label {
+  color: #c88b38;
+}
+
+.sidebar nav a {
+  color: #c9c4bb;
+}
+
+.sidebar nav a:hover {
+  background: #2d3037;
+  color: #fff;
+}
+
+.sidebar nav a.active {
+  background: var(--brand-amber);
+  color: #25231f;
+  font-weight: 700;
+}
+
+.workspace-note {
+  color: #c6beb2;
+}
+
+.workspace-note small,
+.user-card small {
+  color: #928c83;
+}
+
+.live-dot {
+  background: var(--brand-amber);
+}
+
+.user-card {
+  border-top-color: #3a3d44;
+  color: #f0ece5;
+}
+
+.avatar {
+  background: #493519;
+  color: #ffc35b;
+}
+
+.topbar {
+  background: #fbf8f2;
+  color: #8b847a;
+}
+
+.topbar b {
+  color: #4c4944;
+}
+
+.app-footer {
+  color: #8e877c;
+}
+
+.metric.accent,
+.client-avatar,
+.delivery-icon,
+.step-number,
+.callout,
+.margin-pill,
+.success-box {
+  background: #fff0d4;
+  color: #8f570e;
+  border-color: #f0d29c;
+}
+
+.step-row.done .step-number,
+.status-approved,
+.status-completed,
+.status-delivered,
+.status-received,
+.status-confirmed {
+  background: #e8efe4;
+  color: #4d6b48;
+}
+
+.studio-card {
+  background: var(--brand-charcoal);
+  border-color: #33363d;
+  color: #fff9ef;
+}
+
+.studio-card:after {
+  border-color: #d48b2c55;
+}
+
+.studio-card h2,
+.studio-card b,
+.studio-card > a {
+  color: #fff9ef;
+}
+
+.studio-card p,
+.studio-card span,
+.studio-card small {
+  color: #cec5b9;
+}
+
+.studio-rates,
+.studio-card > a {
+  border-color: #44464c;
+}
+
+.studio-rates b {
+  color: #f5b544;
+}
+
+.tabs {
+  background: #ece5da;
+}
+
+.tabs button {
+  color: #837b70;
+}
+
+.tabs button.active {
+  color: #372f24;
+  box-shadow: inset 0 -2px 0 var(--brand-amber), 0 1px 3px #33210b10;
+}
+
+input:not([type='checkbox']),
+select,
+textarea {
+  background: #fffdfa;
+  color: #3d3934;
+  border-color: #ddd4c9;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #d39236;
+  box-shadow: 0 0 0 3px #e6a33d24;
+}
+
+input[type='checkbox'] {
+  accent-color: var(--brand-amber-dark);
+}
+
+.search {
+  border-color: #ddd4c9;
+  color: #998e80;
+}
+
+.result-card {
+  border-color: #ded5c9;
+}
+
+.result-empty,
+.warning {
+  color: #9a6a2e;
+}
+
+.modal-backdrop {
+  background: #18191dcc;
+}
+
+.audit-list pre {
+  background: #f7f1e7;
+  color: #755a36;
+}
+
+.login {
+  background: var(--brand-cream-light);
+}
+
+.login-brand {
+  background:
+    radial-gradient(circle at 78% 70%, #c86c122e 0 18%, transparent 48%),
+    linear-gradient(145deg, #202228 0%, #292c32 100%);
+  color: #fff;
+}
+
+.login-brand:after {
+  content: '';
+  position: absolute;
+  width: 430px;
+  height: 430px;
+  border: 1px solid #e6952b25;
+  border-radius: 50%;
+  right: -220px;
+  bottom: -170px;
+  pointer-events: none;
+}
+
+.login-statement > .eyebrow,
+.login-footer {
+  color: #e5a94d;
+}
+
+.login-statement h1 {
+  color: #fffaf1;
+}
+
+.login-statement p {
+  color: #c7c0b5;
+}
+
+.sculpture {
+  display: none;
+}
+
+.login-panel {
+  background: #fffaf2;
+}
+
+.login-form > p,
+.secure-note {
+  color: #877f74;
+}
+
+.secure-note {
+  border-top-color: #e4d9ca;
+}
+
+.badge,
+.tag {
+  background: #f0ebe3;
+  color: #746d63;
+}
+
+.tag.green,
+.status-in_production,
+.status-in_progress {
+  background: #fff0d8;
+  color: #945c12;
+}
+
+.status-waiting_payment,
+.status-pending,
+.status-paused,
+.status-sent {
+  background: #fff1d8;
+  color: #93671f;
+}
+
+.panel,
+.metric,
+.client-card,
+.production-card,
+.result-card,
+.modal {
+  box-shadow: 0 2px 8px #2f26180a;
+}
+
+@media (max-width: 960px) {
+  .brand > div {
+    font-size: 18px;
+  }
+
+  .brand-logo {
+    width: 40px;
+    height: 45px;
+  }
+}
