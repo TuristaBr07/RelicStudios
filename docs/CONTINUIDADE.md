@@ -7,7 +7,10 @@ Atualizado em 14/10/2026. Este documento é o ponto de entrada para retomar o de
 - Gabriel autorizou autonomia técnica para desenvolvimento e ajustes, com entregas por etapas e informe após cada etapa concluída.
 - Cada entrega registra mudanças, evidências de validação, limitações e próximo passo.
 - Antes de editar, conferir a branch, o commit atual, mudanças locais e a última execução do CI. A situação real do código e dos testes prevalece sobre resumos antigos.
-- Usar commits pequenos e rastreáveis; validar correções em branch antes de integrar à `main`.
+- Usar commits pequenos e rastreáveis. A `main` é a branch permanente; criar branches temporárias apenas quando necessárias para desenvolvimento ou validação.
+- Após integrar uma etapa, remover sua branch temporária remota e local. Não acumular branches soltas.
+- Manter outra branch somente quando houver motivo concreto (por exemplo, trabalho pendente ainda não integrado); registrar e informar a justificativa. Nunca excluir trabalho não integrado sem avaliar seu conteúdo.
+- Ajustes pequenos de documentação podem ser registrados diretamente na `main`, respeitando as proteções do repositório.
 - Atualizar este documento a cada etapa. Não registrar senhas, tokens, dados reais de clientes ou credenciais.
 
 ## Base recuperada
