@@ -6,7 +6,7 @@ test('login e navegação principal', async ({ page }) => {
   await page.goto('/');
   await page.getByLabel('E-mail').fill('qa@example.test');
   await page.getByLabel('Senha').fill(password);
-  await page.getByRole('button', { name: /Entrar no ateliê/i }).click();
+  await page.getByRole('button', { name: /Entrar no estúdio/i }).click();
   await expect(page.getByRole('heading', { name: /Bom trabalho/i })).toBeVisible();
   await page.getByRole('link', { name: /Clientes/i }).click();
   await expect(page.getByRole('heading', { name: 'Clientes' })).toBeVisible();
