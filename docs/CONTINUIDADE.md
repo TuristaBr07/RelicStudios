@@ -67,11 +67,38 @@ Validação remota aprovada em 14/10/2026:
 - O E2E percorreu login com imagem válida, material, cliente, cálculo, orçamento/PDF, aprovação, pedido, entrada, produção, custo realizado, saldo, entrega, financeiro e auditoria. Parte das transições operacionais usa a API autenticada no contexto do navegador.
 - Entrega rastreada na [PR #1](https://github.com/TuristaBr07/RelicStudios/pull/1). Consultar seu estado para confirmar a integração; alterações posteriores ao commit acima são documentação de resultado.
 
+### 3 — Homologação no Render (em andamento)
+
+Preparação concluída em 14/10/2026; validação remota pendente.
+
+- PR #1 integrada à main em `5c8a092`. CI da main `4d65491` aprovado, incluindo E2E: [execução 38590427014](https://github.com/TuristaBr07/RelicStudios/actions/runs/38590427014).
+- Conferidos Blueprint, carregamento de configuração, inicialização, bootstrap de administrador, migrations e healthcheck.
+- Teste local com JavaScript compilado e configuração equivalente ao Render: as quatro migrations passaram no modo gerenciado, incluindo segunda execução sem duplicação e sem criação do papel `relic_runtime`.
+- No mesmo teste, passaram origem derivada de `RENDER_EXTERNAL_URL`, healthcheck com consulta ao banco, HTML do frontend, logo íntegra, bloqueio de API sem sessão (401), login, atributos Secure/HttpOnly/SameSite=Strict e rejeição de origem externa (403).
+- Limitação: teste executado com PGlite isolado e requisições injetadas. Não valida conectividade do driver pg, TLS, proxy real, banco PostgreSQL hospedado, persistência após reinício nem versão efetivamente implantada.
+- O endereço público e o identificador do serviço não foram encontrados no repositório nem no contexto anterior disponível. Integração Render encontrada, mas ainda não conectada. Necessário conectar a conta para inspecionar serviço, deploys e logs.
+- Nenhuma alteração de infraestrutura, acesso ao banco remoto ou nova branch foi realizada nesta preparação.
+- Limpeza pendente: branch remota `fix/restore-logo-validation` já integrada; conexão atual do GitHub não expõe exclusão. Sua cópia local foi removida.
+
+## Roadmap de entrega
+
+| Etapa | Estado | Critério de saída |
+| --- | --- | --- |
+| 1. Recuperar contexto | Concluída | Arquitetura e decisões documentadas. |
+| 2. Estabilizar base | Concluída | CI e fluxo E2E aprovados. |
+| 3. Homologar Render | Em andamento | Implantação, login, migrations, PostgreSQL e persistência verificados no ambiente remoto. |
+| 4. Revisar regras e fluxos | Pendente | Fluxos essenciais e exceções relevantes consistentes, incluindo precificação, produção, pagamentos e permissões. |
+| 5. Finalizar experiência e configuração | Pendente | Interface revisada e parâmetros operacionais configurados com valores reais, sem inventar custos. |
+| 6. Preparar operação definitiva | Pendente | Ambiente definitivo definido, acessos conferidos, backup e restauração testados e manutenção documentada. |
+| 7. Piloto e entrega | Pendente | Caso representativo concluído, pendências bloqueadoras resolvidas, guia curto e versão de entrega identificada. |
+
+Escopo: concluir os módulos existentes. Funcionalidades novas entram apenas quando necessárias para fechar esses fluxos; outras melhorias ficam para depois da entrega. Custos reais, decisões comerciais ausentes e avaliação do piloto exigem participação de Gabriel.
+
 ## Próximo ponto de retomada
 
-1. Confirmar a integração da PR #1 e o CI do commit atual da `main`.
-2. Conferir a homologação no Render antes de declarar o ambiente pronto para uso. O sucesso do CI não comprova implantação, configuração nem integridade do banco remoto.
-3. Depois da homologação, levantar lacunas dos fluxos existentes e priorizar uma próxima etapa delimitada. Não há novos requisitos funcionais definidos nesta retomada.
+1. Verificar se a integração Render foi conectada; se sim, localizar o serviço vinculado a `TuristaBr07/RelicStudios` e confirmar o commit implantado e o resultado do deploy.
+2. Validar URL real, healthcheck, logs sem expor segredos, migrations e persistência. Não tratar teste local ou CI como prova de implantação.
+3. Concluir a etapa 3 antes da revisão funcional da etapa 4. Preservar dados existentes e não executar o E2E destrutivo no banco remoto.
 
 ## Comandos de validação
 
