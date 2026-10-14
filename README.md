@@ -2,6 +2,11 @@
 
 Sistema privado de gestão da Relic Studios para clientes, precificação, orçamentos, pedidos, produção, pagamentos e auditoria.
 
+## Continuidade do desenvolvimento
+
+Consulte [o estado e o ponto de retomada](docs/CONTINUIDADE.md) antes de iniciar uma etapa.
+Esse registro reúne decisões preservadas, evidências de validação e pendências; deve ser atualizado a cada entrega.
+
 ## Estado atual
 
 - versão técnica: `1.0.1-rc.1`;
