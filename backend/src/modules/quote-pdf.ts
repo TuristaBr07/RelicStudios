@@ -1,9 +1,16 @@
 import PDFDocument from 'pdfkit';
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import type { Row } from '../lib/db.js';
 import { dateOnly } from '../lib/core.js';
+
 const money = (n: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n / 100);
 const date = (s: unknown) => dateOnly(s).split('-').reverse().join('/');
+const logoPath = fileURLToPath(
+  new URL('../../../frontend/public/assets/relic-logo.png', import.meta.url),
+);
+
 export function quotePdf(q: Row): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({
@@ -23,22 +30,36 @@ export function quotePdf(q: Row): Promise<Buffer> {
     const regular = 'Helvetica';
     const bold = 'Helvetica-Bold';
     doc.font(regular);
-    const green = '#193c2f',
-      gray = '#52615a',
-      width = 507;
+    const charcoal = '#25282e';
+    const amber = '#f2a51a';
+    const amberDark = '#b96b0b';
+    const gray = '#66635e';
+    const cream = '#f7f1e7';
+    const width = 507;
     const header = () => {
-      doc.rect(0, 0, 596, 108).fill(green);
-      doc.fillColor('#d9e9bd').font(bold).fontSize(25).text('RELIC', 44, 27);
-      doc.fillColor('#ffffff').font(regular).fontSize(9).text('S T U D I O S', 46, 61);
-      doc.fontSize(9).text('COLECIONÁVEIS • FEITOS À MÃO', 310, 39, { width: 240, align: 'right' });
-      doc.font(bold).fontSize(13).text(q.code, 310, 60, { width: 240, align: 'right' });
+      doc.rect(0, 0, 596, 108).fill(charcoal);
+      if (existsSync(logoPath)) doc.image(logoPath, 44, 14, { fit: [66, 78] });
+      doc.fillColor('#ffffff').font(bold).fontSize(18).text('Relic Studios', 121, 28);
+      doc
+        .fillColor(amber)
+        .font(regular)
+        .fontSize(7.5)
+        .text('ACTION FIGURES • COLECIONÁVEIS', 122, 55);
+      doc
+        .fillColor('#d8d1c6')
+        .font(regular)
+        .fontSize(8)
+        .text('ORÇAMENTO COMERCIAL', 334, 33, { width: 216, align: 'right' });
+      doc
+        .fillColor('#ffffff')
+        .font(bold)
+        .fontSize(13)
+        .text(q.code, 334, 55, { width: 216, align: 'right' });
       doc.y = 132;
       doc.x = 44;
     };
     const room = (height: number) => {
-      if (doc.y + height > 758) {
-        doc.addPage();
-      }
+      if (doc.y + height > 758) doc.addPage();
     };
     const paragraph = (text: string, size = 9) => {
       doc.font(regular).fontSize(size);
@@ -47,7 +68,7 @@ export function quotePdf(q: Row): Promise<Buffer> {
       doc.fillColor(gray).text(text, 44, doc.y, { width, lineGap: 3 });
       doc.moveDown(0.5);
     };
-    doc.fillColor(green).font(bold).fontSize(22).text('Sua próxima peça de coleção', 44, doc.y);
+    doc.fillColor(charcoal).font(bold).fontSize(22).text('Sua próxima peça de coleção', 44, doc.y);
     doc.moveDown(0.6);
     paragraph(`Preparado para ${q.client_snapshot.name}`, 11);
     paragraph([q.client_snapshot.email, q.client_snapshot.phone].filter(Boolean).join('  |  '));
@@ -70,9 +91,10 @@ export function quotePdf(q: Row): Promise<Buffer> {
       const height = Math.max(70, doc.heightOfString(desc, { width: 300, lineGap: 4 }) + 32);
       room(height);
       const y = doc.y;
-      doc.roundedRect(44, y, width, height - 8, 6).fill('#f2f4ed');
+      doc.roundedRect(44, y, width, height - 8, 6).fill(cream);
+      doc.rect(44, y, 3, height - 8).fill(amber);
       doc
-        .fillColor(green)
+        .fillColor(charcoal)
         .font(bold)
         .fontSize(10)
         .text(desc, 58, y + 12, { width: 300, lineGap: 4 });
@@ -86,7 +108,7 @@ export function quotePdf(q: Row): Promise<Buffer> {
         });
       doc
         .font(bold)
-        .fillColor(green)
+        .fillColor(charcoal)
         .fontSize(12)
         .text(money(item.total_cents), 372, y + 32, { width: 165, align: 'right' });
       doc.y = y + height;
@@ -99,22 +121,24 @@ export function quotePdf(q: Row): Promise<Buffer> {
       `Frete separado: ${money(q.shipping_cents)}${q.shipping_cents === 0 ? ' (sem cobrança nesta proposta)' : ''}`,
     );
     const totalY = doc.y;
-    doc.rect(44, totalY, width, 42).fill(green);
+    doc.rect(44, totalY, width, 42).fill(amber);
     doc
-      .fillColor('#ffffff')
+      .fillColor(charcoal)
       .font(bold)
       .fontSize(12)
       .text('INVESTIMENTO TOTAL', 58, totalY + 14);
     doc.fontSize(16).text(money(q.total_cents), 342, totalY + 11, { width: 195, align: 'right' });
     doc.y = totalY + 61;
     doc.x = 44;
-    paragraph('CONDIÇÕES', 10);
+    doc.fillColor(amberDark).font(bold).fontSize(10).text('CONDIÇÕES', 44, doc.y);
+    doc.moveDown(0.65);
     paragraph(q.payment_terms);
     paragraph(
       `O prazo de produção começa após a confirmação da entrada. Validade comercial até ${date(q.valid_until)}.`,
     );
     if (q.notes) {
-      paragraph('OBSERVAÇÕES', 10);
+      doc.fillColor(amberDark).font(bold).fontSize(10).text('OBSERVAÇÕES', 44, doc.y);
+      doc.moveDown(0.65);
       paragraph(q.notes);
     }
     paragraph(
@@ -125,6 +149,7 @@ export function quotePdf(q: Row): Promise<Buffer> {
       doc.switchToPage(i);
       doc.page.margins.bottom = 0;
       header();
+      doc.moveTo(44, 779).lineTo(551, 779).strokeColor('#dfd5c7').lineWidth(0.5).stroke();
       doc
         .font(regular)
         .fontSize(8)

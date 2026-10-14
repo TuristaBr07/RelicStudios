@@ -1,25 +1,25 @@
 import { useState } from 'react';
 import { KeyRound, ShieldCheck, ArrowRight } from 'lucide-react';
 import { api, send, Field, Form, Button, Feedback, useAction } from '../lib';
+import { BrandMark } from '../components/BrandMark';
 
 function PublicShell({ children }: { children: React.ReactNode }) {
   return (
     <main className="login">
       <div className="login-brand">
         <div className="brand large">
-          <span className="brand-symbol">R</span>
-          <div>
-            RELIC<small>STUDIOS</small>
-          </div>
+          <BrandMark large />
         </div>
         <div className="login-statement">
-          <span className="eyebrow">ACESSO PRIVADO</span>
+          <span className="eyebrow">ACESSO PRIVADO · RELIC STUDIOS</span>
           <h1>
-            Seu espaço de trabalho,<br />protegido.
+            Seu espaço de trabalho,
+            <br />
+            protegido.
           </h1>
           <p>Convites e recuperações usam links únicos e com validade curta.</p>
         </div>
-        <span className="login-footer">COLECIONÁVEIS · ARTE · PRECISÃO</span>
+        <span className="login-footer">IMPRESSÃO 3D · FIGURES · COLECIONÁVEIS</span>
       </div>
       <div className="login-panel">
         <div className="login-form">{children}</div>
@@ -47,7 +47,7 @@ export function ActivateAccount() {
         <>
           <div className="secure-note">
             <ShieldCheck size={16} />
-            <span>Conta ativada. Você já pode entrar no ateliê.</span>
+            <span>Conta ativada. Você já pode entrar no estúdio.</span>
           </div>
           <a className="button primary full" href="/">
             Ir para o login <ArrowRight size={18} />

@@ -17,6 +17,7 @@ import {
   Printer,
 } from 'lucide-react';
 import { useAuth, Loading, Field, Form, Button, useAction, Feedback } from './lib';
+import { BrandMark } from './components/BrandMark';
 import { Dashboard } from './pages/Dashboard';
 import { Clients } from './pages/Clients';
 import { CalculatorPage } from './pages/Pricing';
@@ -45,20 +46,17 @@ function Login() {
     <main className="login">
       <div className="login-brand">
         <div className="brand large">
-          <span className="brand-symbol">R</span>
-          <div>
-            RELIC<small>STUDIOS</small>
-          </div>
+          <BrandMark large />
         </div>
         <div className="login-statement">
-          <span className="eyebrow">DO IMAGINÁRIO AO TANGÍVEL</span>
+          <span className="eyebrow">RELIC STUDIOS · OPERAÇÃO INTERNA</span>
           <h1>
-            Cada detalhe <br />
-            conta uma história.
+            Da impressão ao <br />
+            acabamento final.
           </h1>
           <p>
-            Um espaço para cuidar de cada criação. <br />
-            Do primeiro orçamento à última pincelada.
+            Um espaço para acompanhar cada peça. <br />
+            Do orçamento à produção e entrega.
           </p>
           <div className="sculpture" aria-hidden="true">
             <div />
@@ -66,11 +64,11 @@ function Login() {
             <div />
           </div>
         </div>
-        <span className="login-footer">COLECIONÁVEIS · ARTE · PRECISÃO</span>
+        <span className="login-footer">IMPRESSÃO 3D · FIGURES · COLECIONÁVEIS</span>
       </div>
       <div className="login-panel">
         <div className="login-form">
-          <span className="eyebrow">SEU ATELIÊ, ORGANIZADO</span>
+          <span className="eyebrow">GESTÃO DA RELIC STUDIOS</span>
           <h2>Bem-vindo de volta.</h2>
           <p>Acesse a operação da Relic Studios.</p>
           <Form onSubmit={() => void action.run(() => login(email, password), '')}>
@@ -94,7 +92,7 @@ function Login() {
             </Field>
             <Feedback action={action} />
             <Button className="primary full" busy={action.busy}>
-              Entrar no ateliê <ArrowRight size={18} />
+              Entrar no estúdio <ArrowRight size={18} />
             </Button>
           </Form>
           <div className="secure-note">
@@ -128,12 +126,9 @@ export default function App() {
     <div className="app-shell">
       <aside className={`sidebar ${open ? 'open' : ''}`}>
         <NavLink to="/" className="brand">
-          <span className="brand-symbol">R</span>
-          <div>
-            RELIC<small>STUDIOS</small>
-          </div>
+          <BrandMark />
         </NavLink>
-        <span className="nav-label">ESPAÇO DE TRABALHO</span>
+        <span className="nav-label">OPERAÇÃO</span>
         <nav>
           {nav
             .filter((n) => !n.commercial || commercial)
@@ -147,8 +142,8 @@ export default function App() {
         </nav>
         <div className="sidebar-bottom">
           <div className="workspace-note">
-            <span className="live-dot" /> Ateliê conectado
-            <small>Feito para criar com cuidado.</small>
+            <span className="live-dot" /> Estúdio conectado
+            <small>Produção, pintura e modelagem.</small>
           </div>
           <button className="user-card" onClick={() => void action.run(logout, '')}>
             <span className="avatar">{user.name.slice(0, 1)}</span>
@@ -179,7 +174,7 @@ export default function App() {
             <Menu size={22} />
           </button>
           <span>
-            Ateliê <ChevronRight size={13} /> <b>{current?.label ?? 'Detalhes'}</b>
+            Relic Studios <ChevronRight size={13} /> <b>{current?.label ?? 'Detalhes'}</b>
           </span>
           <span className="topbar-date">
             {new Intl.DateTimeFormat('pt-BR', {
@@ -212,7 +207,7 @@ export default function App() {
           </Routes>
         </main>
         <footer className="app-footer">
-          RELIC STUDIOS <span>Detalhes que viram legado.</span>
+          RELIC STUDIOS <span>Da impressão ao acabamento final.</span>
         </footer>
       </div>
     </div>
