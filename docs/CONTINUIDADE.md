@@ -1,6 +1,6 @@
 # Continuidade — Relic Studios
 
-Atualizado em 14/10/2026. Este documento é o ponto de entrada para retomar o desenvolvimento sem depender de uma conversa anterior.
+Atualizado em 15/10/2026. Este documento é o ponto de entrada para retomar o desenvolvimento sem depender de uma conversa anterior.
 
 ## Modelo de trabalho acordado
 
@@ -101,6 +101,21 @@ node backend/dist/cli/migrate.js && node backend/dist/cli/bootstrap-render.js &&
 Após salvar, retomar o serviço e acompanhar o deploy da main; evitar deploy duplicado se a alteração já iniciar um automaticamente. Não recriar o arquivo tar como contorno.
 - Limpeza pendente: branch remota `fix/restore-logo-validation` já integrada; conexão atual do GitHub não expõe exclusão. Sua cópia local foi removida.
 
+### 3 — Atualização de implantação em 15/10/2026
+
+Esta atualização substitui os bloqueios de acesso e de implantação descritos no diagnóstico de 14/10.
+
+- Login no painel Render concluído pelo usuário e confirmado na conta do workspace correto.
+- Build e Start Command do serviço existente corrigidos para os comandos do `render.yaml`; serviço reativado, mantendo plano free, banco e restrições de rede.
+- Deploy `dep-db8e05s9v7es738h8sj0` do commit `31a07ba0d6c24b75fc346ea0d5c7d6b4f7e9944b` confirmado como **live** em 15/10/2026 às 14:17:02 UTC (11:17:02 em Brasília). CI desse commit também aprovado: [execução 38632748367](https://github.com/TuristaBr07/RelicStudios/actions/runs/38632748367).
+- Build executou verificação de tipos, testes, compilação e auditoria sem bloquear. Auditoria reportou zero vulnerabilidades.
+- Logs de inicialização confirmaram: `Migrations aplicadas e checksums conferidos.` e `Administrador inicial já existe; bootstrap ignorado.` O administrador existente foi preservado.
+- Verificação externa por HTTPS: `GET /health` retornou HTTP 200 com `status: ok` e `database: connected`; `GET /api/auth/me` sem sessão retornou 401; POST de login com origem externa retornou 403.
+- Tela de login carregou no navegador e a logo foi decodificada (1052 × 1600).
+- Blueprint `exs-db4kkqbncjis73ft1gg0` ainda apontava para a branch removida `render-homolog-v1.0.1-rc.1`. Corrigido para `main`, caminho `render.yaml`, com Auto Sync reativado.
+- Particularidade do painel: a branch removida aparecia como `main` no formulário, com salvamento desabilitado. Foi necessário selecionar temporariamente a branch existente `fix/restore-logo-validation` com Auto Sync pausado, e depois salvar `main`. A proposta intermediária de alterar a branch do serviço para a branch de correção **não foi aprovada**; o serviço continuou na main. Nenhuma branch foi criada. Não aprovar propostas antigas de sincronização.
+- Homologação completa ainda pendente: login na própria Relic Studios (credenciais separadas do Render), conferência interna e teste de persistência após reinicialização. Não confundir deploy saudável com aprovação integral dos fluxos.
+
 ## Roadmap de entrega
 
 | Etapa | Estado | Critério de saída |
@@ -117,8 +132,8 @@ Escopo: concluir os módulos existentes. Funcionalidades novas entram apenas qua
 
 ## Próximo ponto de retomada
 
-1. Concluir autenticação segura no painel Render, aplicar os comandos acima ao serviço existente e retomar sua execução. Confirmar o commit implantado e o resultado do deploy.
-2. Validar URL real, healthcheck, logs sem expor segredos, migrations e persistência. Não tratar teste local ou CI como prova de implantação.
+1. Concluir login seguro na aplicação Relic Studios usando a conta existente, sem expor credenciais ou redefinir senha sem solicitação.
+2. Validar navegação autenticada e persistência após reinicialização. Implantação, URL HTTPS, migrations e healthcheck remoto já foram verificados; conferir o estado mais recente antes de retomar.
 3. Concluir a etapa 3 antes da revisão funcional da etapa 4. Preservar dados existentes e não executar o E2E destrutivo no banco remoto.
 
 ## Comandos de validação
