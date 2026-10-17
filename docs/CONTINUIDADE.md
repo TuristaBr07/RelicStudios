@@ -129,6 +129,35 @@ Esta atualização substitui os bloqueios de acesso e de implantação descritos
 - Pendências operacionais observadas para a etapa 5: nenhum material cadastrado; energia e custo de máquina zerados; consumo médio das impressoras sem calibração. Preservar valores existentes e configurar com dados reais antes do piloto.
 - Nenhuma branch nova criada. Limpeza da branch remota já integrada continua pendente pela limitação da conexão GitHub descrita acima.
 
+### 4 — Revisão das regras e fluxos concluída em 17/10/2026
+
+Implementação: commit `8c44e0233af888f651eefd5f4a3e1151b4cf29b8`, integrado em um único commit na main, sem nova branch.
+
+Revisados precificação por lote, snapshots de orçamento/pedido, transições de produção/fabricação, recebimentos, estornos e separação entre ADMIN, COMMERCIAL e TEAM.
+
+Correções entregues:
+
+- Resultado sobre as peças desconta taxas e impostos do snapshot aprovado; frete permanece separado. Taxas, impostos e custos complementares continuam estimados até existir conciliação específica.
+- Pedido não pode ficar pronto com jobs de fabricação abertos ou com falhas sem uma nova tentativa.
+- Jobs com falha podem gerar uma nova tentativa pela interface do pedido. A operação é idempotente, preserva custos da falha e parâmetros comerciais e não altera preço vendido nem baseline. Tentativas sucessivas são rastreáveis.
+- Cancelar um pedido encerra jobs planejados/prontos e preserva os já encerrados. Jobs em execução precisam ser encerrados antes, com material e tempo reais.
+- Cancelamento de job não iniciado deixa de gerar erro de integridade e não registra início fictício.
+- Reordenação bloqueada após início ou encerramento de qualquer etapa, impedindo reabertura de etapa cancelada.
+- Painel da equipe expõe apenas o nome do cliente, removendo contato, documento e endereço dessa resposta operacional.
+- Escritas operacionais usam a mesma ordem de bloqueios: pedido antes dos jobs, evitando inversão de locks com cancelamento.
+
+Evidências:
+
+- Sete cenários de falha reproduzidos antes da correção em banco isolado; cenário de pagamentos já passava.
+- Nove novos cenários cobrem cálculo do resultado, fechamento, cancelamentos, nova tentativa, imutabilidade comercial, reordenação, isolamento por perfil, repetição de pagamentos, excesso de saldo e restrição de estornos.
+- `npm run verify`: tipos, 21 testes (incluindo subtestes) e build aprovados. Auditoria de dependências: zero vulnerabilidades reportadas.
+- [CI 39037506558](https://github.com/TuristaBr07/RelicStudios/actions/runs/39037506558) aprovado na main, incluindo E2E com falha de impressão, ação **Repetir job** pela interface, conclusão de produção, saldo e entrega.
+- Chromium local retornou arquivo de download inválido; o E2E foi executado com sucesso no GitHub Actions.
+- Render: deploy `dep-db9nle67bikc73dtk600` confirmado live em 17/10 às 13:41:27 UTC. Healthcheck externo confirmado após implantação.
+- Não houve migração de banco, alteração de custos reais, execução de cenários comerciais de teste no banco remoto ou criação de usuários remotos.
+
+Limites: revisão e testes de fluxos essenciais não substituem o piloto com custos reais, backup/restauração ou ensaios de concorrência/carga no PostgreSQL. Cancelamento de job continua sendo exceção administrativa; qualidade e embalagem permanecem obrigatórias para entrega. Não ampliar a etapa para novos módulos.
+
 ## Roadmap de entrega
 
 | Etapa | Estado | Critério de saída |
@@ -136,7 +165,7 @@ Esta atualização substitui os bloqueios de acesso e de implantação descritos
 | 1. Recuperar contexto | Concluída | Arquitetura e decisões documentadas. |
 | 2. Estabilizar base | Concluída | CI e fluxo E2E aprovados. |
 | 3. Homologar Render | Concluída | Implantação, login, migrations, PostgreSQL e persistência verificados no ambiente remoto. |
-| 4. Revisar regras e fluxos | Pendente | Fluxos essenciais e exceções relevantes consistentes, incluindo precificação, produção, pagamentos e permissões. |
+| 4. Revisar regras e fluxos | Concluída | Fluxos essenciais e exceções relevantes consistentes, incluindo precificação, produção, pagamentos e permissões. |
 | 5. Finalizar experiência e configuração | Pendente | Interface revisada e parâmetros operacionais configurados com valores reais, sem inventar custos. |
 | 6. Preparar operação definitiva | Pendente | Ambiente definitivo definido, acessos conferidos, backup e restauração testados e manutenção documentada. |
 | 7. Piloto e entrega | Pendente | Caso representativo concluído, pendências bloqueadoras resolvidas, guia curto e versão de entrega identificada. |
@@ -145,10 +174,11 @@ Escopo: concluir os módulos existentes. Funcionalidades novas entram apenas qua
 
 ## Próximo ponto de retomada
 
-1. Iniciar a etapa 4: revisar regras e exceções de precificação, orçamentos, produção, pagamentos e permissões, confrontando implementação, testes e decisões preservadas neste documento.
-2. Conferir branch, commit, mudanças locais, CI e estado remoto antes de editar. Preservar dados existentes e executar testes de escrita apenas em banco isolado.
-3. Na etapa 5, obter os custos reais e calibrações faltantes. Na etapa 6, resolver a expiração do PostgreSQL free em 08/11/2026, testar backup/restauração e definir operação definitiva.
-4. Remover a branch remota de correção já integrada quando houver mecanismo autorizado disponível; não criar branches sem necessidade.
+1. Iniciar a etapa 5: revisar a experiência dos módulos existentes, mensagens e estados vazios, e preparar a configuração operacional.
+2. Antes de editar, conferir branch, commit, mudanças locais, CI e estado remoto. Continuar usando banco isolado para testes de escrita.
+3. Configurar materiais, energia, máquina/h e consumo médio somente com dados reais fornecidos ou medidos por Gabriel; não inventar custos. Essa participação não bloqueia os ajustes técnicos de interface.
+4. Na etapa 6, resolver a expiração do PostgreSQL free em 08/11/2026, testar backup/restauração e definir operação definitiva.
+5. Limpeza da branch remota já integrada `fix/restore-logo-validation` permanece pendente por ausência de mecanismo de exclusão na conexão GitHub; nenhuma branch foi adicionada nesta etapa.
 
 ## Comandos de validação
 
