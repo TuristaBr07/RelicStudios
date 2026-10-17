@@ -1,6 +1,6 @@
 # Continuidade — Relic Studios
 
-Atualizado em 15/10/2026. Este documento é o ponto de entrada para retomar o desenvolvimento sem depender de uma conversa anterior.
+Atualizado em 17/10/2026. Este documento é o ponto de entrada para retomar o desenvolvimento sem depender de uma conversa anterior.
 
 ## Modelo de trabalho acordado
 
@@ -67,9 +67,9 @@ Validação remota aprovada em 14/10/2026:
 - O E2E percorreu login com imagem válida, material, cliente, cálculo, orçamento/PDF, aprovação, pedido, entrada, produção, custo realizado, saldo, entrega, financeiro e auditoria. Parte das transições operacionais usa a API autenticada no contexto do navegador.
 - Entrega rastreada na [PR #1](https://github.com/TuristaBr07/RelicStudios/pull/1). Consultar seu estado para confirmar a integração; alterações posteriores ao commit acima são documentação de resultado.
 
-### 3 — Homologação no Render (em andamento)
+### 3 — Homologação no Render (concluída em 17/10/2026)
 
-Preparação local concluída e diagnóstico remoto realizado em 14/10/2026; implantação e homologação funcional remotas ainda pendentes.
+Histórico do diagnóstico de 14/10/2026, preservado abaixo. Os bloqueios deste diagnóstico foram resolvidos nas atualizações de 15/10 e 17/10.
 
 - PR #1 integrada à main em `5c8a092`. CI da main `4d65491` aprovado, incluindo E2E: [execução 38590427014](https://github.com/TuristaBr07/RelicStudios/actions/runs/38590427014).
 - Conferidos Blueprint, carregamento de configuração, inicialização, bootstrap de administrador, migrations e healthcheck.
@@ -116,13 +116,26 @@ Esta atualização substitui os bloqueios de acesso e de implantação descritos
 - Particularidade do painel: a branch removida aparecia como `main` no formulário, com salvamento desabilitado. Foi necessário selecionar temporariamente a branch existente `fix/restore-logo-validation` com Auto Sync pausado, e depois salvar `main`. A proposta intermediária de alterar a branch do serviço para a branch de correção **não foi aprovada**; o serviço continuou na main. Nenhuma branch foi criada. Não aprovar propostas antigas de sincronização.
 - Homologação completa ainda pendente: login na própria Relic Studios (credenciais separadas do Render), conferência interna e teste de persistência após reinicialização. Não confundir deploy saudável com aprovação integral dos fluxos.
 
+### 3 — Conclusão da homologação técnica em 17/10/2026
+
+- Versão remota conferida: commit `fe0b0a741134870ebc679b994ef8fa863f2d6d2c`, deploy `dep-db8e39tbedkc73a4mll0`, live desde 15/10 às 14:23:52 UTC. [CI 38750817739](https://github.com/TuristaBr07/RelicStudios/actions/runs/38750817739) concluído com sucesso.
+- Serviço ativo na main, com os comandos corretos. Healthcheck HTTPS retornou HTTP 200 e banco conectado.
+- Reinicialização após hibernação observada em nova instância em 17/10 às 13:20 UTC: migrations/checksums conferidos e administrador existente preservado pelo bootstrap.
+- Login realizado pelo usuário na aplicação e confirmado com perfil Administrador. Não houve redefinição de senha ou alteração de acessos.
+- Navegação autenticada verificada em Visão geral, Clientes, Calculadora, Orçamentos, Pedidos, Produção, Fabricação, Financeiro e Configurações. Política de preços e auditoria carregadas.
+- Simulação sem gravação: 1 hora de modelagem a R$ 50/h, overhead de 10% e margem de 20% resultaram em custo de R$ 55,00 e preço de R$ 68,75, conforme cálculo independente. Nenhum orçamento ou lançamento foi criado.
+- Persistência confirmada para registros existentes após deploy/reinicialização: administrador, política de preços de 09/10, duas impressoras e histórico de auditoria desde 09/10 continuaram disponíveis. Acesso de 17/10 apareceu na auditoria.
+- Escopo desta conclusão: infraestrutura, PostgreSQL pela aplicação, autenticação, navegação e persistência dos registros existentes. Não representa aprovação integral das regras de negócio, teste de backup/restauração ou ciclo comercial completo no banco remoto; estes permanecem nas etapas seguintes. O E2E completo segue isolado no CI.
+- Pendências operacionais observadas para a etapa 5: nenhum material cadastrado; energia e custo de máquina zerados; consumo médio das impressoras sem calibração. Preservar valores existentes e configurar com dados reais antes do piloto.
+- Nenhuma branch nova criada. Limpeza da branch remota já integrada continua pendente pela limitação da conexão GitHub descrita acima.
+
 ## Roadmap de entrega
 
 | Etapa | Estado | Critério de saída |
 | --- | --- | --- |
 | 1. Recuperar contexto | Concluída | Arquitetura e decisões documentadas. |
 | 2. Estabilizar base | Concluída | CI e fluxo E2E aprovados. |
-| 3. Homologar Render | Em andamento | Implantação, login, migrations, PostgreSQL e persistência verificados no ambiente remoto. |
+| 3. Homologar Render | Concluída | Implantação, login, migrations, PostgreSQL e persistência verificados no ambiente remoto. |
 | 4. Revisar regras e fluxos | Pendente | Fluxos essenciais e exceções relevantes consistentes, incluindo precificação, produção, pagamentos e permissões. |
 | 5. Finalizar experiência e configuração | Pendente | Interface revisada e parâmetros operacionais configurados com valores reais, sem inventar custos. |
 | 6. Preparar operação definitiva | Pendente | Ambiente definitivo definido, acessos conferidos, backup e restauração testados e manutenção documentada. |
@@ -132,9 +145,10 @@ Escopo: concluir os módulos existentes. Funcionalidades novas entram apenas qua
 
 ## Próximo ponto de retomada
 
-1. Concluir login seguro na aplicação Relic Studios usando a conta existente, sem expor credenciais ou redefinir senha sem solicitação.
-2. Validar navegação autenticada e persistência após reinicialização. Implantação, URL HTTPS, migrations e healthcheck remoto já foram verificados; conferir o estado mais recente antes de retomar.
-3. Concluir a etapa 3 antes da revisão funcional da etapa 4. Preservar dados existentes e não executar o E2E destrutivo no banco remoto.
+1. Iniciar a etapa 4: revisar regras e exceções de precificação, orçamentos, produção, pagamentos e permissões, confrontando implementação, testes e decisões preservadas neste documento.
+2. Conferir branch, commit, mudanças locais, CI e estado remoto antes de editar. Preservar dados existentes e executar testes de escrita apenas em banco isolado.
+3. Na etapa 5, obter os custos reais e calibrações faltantes. Na etapa 6, resolver a expiração do PostgreSQL free em 08/11/2026, testar backup/restauração e definir operação definitiva.
+4. Remover a branch remota de correção já integrada quando houver mecanismo autorizado disponível; não criar branches sem necessidade.
 
 ## Comandos de validação
 
