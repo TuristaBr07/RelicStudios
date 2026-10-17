@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Plus,
   ShieldCheck,
@@ -44,6 +45,12 @@ const policyLabels: Record<string, string> = {
   validityDays: 'Validade do orçamento (dias)',
   depositPercent: 'Entrada (%)',
 };
+const policyLimits: Record<string, [number, number]> = {
+  finishingHourly: [30, 10000], paintingHourly: [40, 10000], modelingHourly: [50, 10000],
+  electricityKwh: [0, 100], reservePercent: [0, 100], overheadPercent: [0, 100],
+  minimumMarginPercent: [15, 80], defaultMarginPercent: [15, 80], premiumMinPercent: [15, 80],
+  premiumMaxPercent: [15, 80], maximumPixPercent: [0, 5], validityDays: [1, 90], depositPercent: [1, 100],
+};
 
 function Policies() {
   const { data, error, loading, reload } = useData<Row[]>('/policies?includeInactive=true');
@@ -59,8 +66,9 @@ function Policies() {
           <h2>Versões de precificação</h2>
         </div>
         <button
+          disabled={loading || !data?.some((p) => p.active)}
           onClick={() => {
-            setSettings({ ...data?.find((p) => p.active)?.settings });
+            setSettings({ electricityKwh: 0, ...data?.find((p) => p.active)?.settings });
             setName('');
             action.clear();
             setOpen(true);
@@ -88,7 +96,7 @@ function Policies() {
               </span>
             </summary>
             <dl className="policy-values">
-              {Object.entries(p.settings).map(([k, v]) => (
+              {Object.entries({ electricityKwh: 0, ...p.settings }).map(([k, v]) => (
                 <div key={k}>
                   <dt>{policyLabels[k] ?? k}</dt>
                   <dd>{Number(v).toLocaleString('pt-BR')}</dd>
@@ -125,11 +133,12 @@ function Policies() {
             </Field>
             <div className="form-grid">
               {Object.entries(policyLabels).map(([k, label]) => (
-                <Field key={k} label={label}>
+                <Field key={k} label={label} hint={k === 'electricityKwh' ? 'Tarifa efetiva por kWh da conta de energia. Zero exclui energia do custo.' : `De ${policyLimits[k]![0]} a ${policyLimits[k]![1]}.`}>
                   <input
                     required
                     type="number"
-                    min="0"
+                    min={policyLimits[k]![0]}
+                    max={policyLimits[k]![1]}
                     step={k === 'validityDays' ? '1' : '0.01'}
                     value={settings[k] ?? ''}
                     onChange={(e) => setSettings({ ...settings, [k]: num(e.target.value) })}
@@ -137,6 +146,7 @@ function Policies() {
                 </Field>
               ))}
             </div>
+            <p className="fine-print">As margens devem seguir a ordem: mínima ≤ padrão ≤ premium mínimo ≤ premium máximo. A nova versão será usada nos próximos cálculos.</p>
             <Feedback action={action} />
             <Button className="primary" busy={action.busy}>
               Publicar nova versão
@@ -156,8 +166,7 @@ function AccessLinkModal({ link, onClose }: { link: AccessLink; onClose: () => v
     <Modal title={link.title} onClose={onClose}>
       <div className="modal-body">
         <p className="muted">
-          Compartilhe o link por um canal seguro. O servidor armazena somente o hash do token e este
-          valor completo não será exibido novamente após fechar esta janela.
+          Compartilhe o link por um canal seguro. Ele é de uso único e não será exibido novamente após fechar esta janela.
         </p>
         <Field label="Link de acesso">
           <input readOnly value={link.url} onFocus={(e) => e.currentTarget.select()} />
@@ -479,8 +488,11 @@ function Audit() {
 
 export function SettingsPage() {
   const { user } = useAuth();
-  const [tab, setTab] = useState('ACCOUNT'),
-    [currentPassword, setCurrent] = useState(''),
+  const [params, setParams] = useSearchParams();
+  const requestedTab = params.get('tab') ?? 'ACCOUNT';
+  const tab = user!.role === 'ADMIN' && ['POLICIES', 'USERS', 'AUDIT'].includes(requestedTab) ? requestedTab : 'ACCOUNT';
+  const setTab = (value: string) => setParams(value === 'ACCOUNT' ? {} : { tab: value });
+  const [currentPassword, setCurrent] = useState(''),
     [newPassword, setNew] = useState('');
   const action = useAction();
   return (

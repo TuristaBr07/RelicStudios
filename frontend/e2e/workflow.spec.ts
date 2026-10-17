@@ -220,6 +220,7 @@ test('fluxo completo do estúdio pela interface', async ({ page }) => {
   await page.getByRole('button', { name: /Concluir entrega/i }).click();
   await expect(page.getByText('Entregue', { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: /Uma criação, uma nova história/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Registrar pagamento/i })).toHaveCount(0);
 
   await page.getByRole('link', { name: /Financeiro/i }).click();
   await expect(page.getByRole('heading', { name: 'Financeiro' })).toBeVisible();
@@ -229,4 +230,47 @@ test('fluxo completo do estúdio pela interface', async ({ page }) => {
   await page.getByRole('button', { name: 'Auditoria' }).click();
   await expect(page.getByText('Pedido entregue', { exact: true })).toBeVisible();
   await expect(page.getByText('Orçamento aprovado', { exact: true })).toBeVisible();
+});
+
+test('configuração orienta custos e usa catálogo e política ativos', async ({ page }) => {
+  await login(page);
+  const policies = await api<any[]>(page, 'GET', '/policies');
+  const active = policies.find((p) => p.active)!;
+  // UI fixtures avoid changing the commercial policy used by the workflow test.
+  const settings = { ...active.settings, finishingHourly: 77, defaultMarginPercent: 22 };
+  delete settings.electricityKwh;
+  await page.route('**/api/policies*', (route) => route.fulfill({
+    json: [{ ...active, name: 'Política de interface', settings }],
+  }));
+  await page.goto('/');
+  await expect(page.getByText(/Política ativa: Política de interface/)).toBeVisible();
+  await expect(page.getByText(/R\$\s*77,00\/h/)).toBeVisible();
+
+  await page.route('**/api/manufacturing/materials*', (route) => route.fulfill({ json: [{
+    id: '22222222-2222-4222-8222-222222222222', name: 'Resina de interface',
+    technology_code: 'MSLA', active: true, unit: 'ML', package_price_cents: 15000,
+  }] }));
+  const printers = await api<any[]>(page, 'GET', '/manufacturing/printers');
+  const saturn = printers.find((p) => p.technology_code === 'MSLA')!;
+  await page.goto('/pricing');
+  await page.getByRole('button', { name: 'Adicionar job' }).click();
+  await expect(page.getByLabel('Impressora', { exact: true })).toHaveValue(saturn.id);
+  await expect(page.getByLabel('Material', { exact: true })).toHaveValue('22222222-2222-4222-8222-222222222222');
+  await expect(page.getByText('Confira os custos antes de vender')).toBeVisible();
+  await expect(page.getByText('Tarifa de energia zerada na política ativa.')).toBeVisible();
+  await expect(page.getByText(/Padrão 22%/)).toBeVisible();
+
+  await page.goto('/manufacturing');
+  await expect(page.getByRole('heading', { name: 'Conferência dos custos' })).toBeVisible();
+  await page.getByRole('link', { name: 'Configurações → Precificação' }).click();
+  await expect(page.getByRole('heading', { name: 'Versões de precificação' })).toBeVisible();
+  await page.getByRole('button', { name: 'Nova versão' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Publicar nova política' });
+  await expect(dialog.getByLabel('Energia elétrica (R$/kWh)', { exact: true })).toHaveValue('0');
+  await expect(dialog.getByLabel('Margem mínima (%)', { exact: true })).toHaveAttribute('min', '15');
+  await expect(dialog.getByLabel('Desconto Pix máximo (%)', { exact: true })).toHaveAttribute('max', '5');
+
+  await page.route('**/api/clients*', (route) => route.fulfill({ status: 503, contentType: 'text/html', body: '<h1>Unavailable</h1>' }));
+  await page.goto('/clients');
+  await expect(page.getByRole('alert')).toContainText('O serviço está temporariamente indisponível.');
 });

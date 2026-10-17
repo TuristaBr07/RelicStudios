@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Calculator,
   ArrowRight,
@@ -137,7 +137,8 @@ export function PricingEditor({
   }
 
   function addJob() {
-    const printer = printers.data?.find((p) => p.active) ?? printers.data?.[0];
+    const printer = printers.data?.find((p) => p.active &&
+      materials.data?.some((m) => m.active && m.technology_code === p.technology_code));
     if (!printer) return;
     const material = materials.data?.find(
       (m) => m.active && m.technology_code === printer.technology_code,
@@ -176,8 +177,18 @@ export function PricingEditor({
   const catalogError = printers.error || materials.error;
   const canAddJob =
     !!printers.data?.some((p) =>
-      materials.data?.some((m) => m.technology_code === p.technology_code && m.active),
+      p.active && materials.data?.some((m) => m.technology_code === p.technology_code && m.active),
     );
+  const costWarnings = [...new Set(jobs.flatMap((job) => {
+    const printer = printers.data?.find((p) => p.id === job.printerId);
+    const material = materials.data?.find((m) => m.id === job.materialId);
+    return [
+      ...(printer && !Number(printer.machine_hourly_cents) ? [`${printer.name}: custo de máquina zerado.`] : []),
+      ...(printer && !Number(printer.estimated_average_power_watts) ? [`${printer.name}: consumo médio ainda não medido; energia não incluída.`] : []),
+      ...(material && !Number(material.package_price_cents) ? [`${material.name}: preço da embalagem zerado.`] : []),
+      ...(!Number(policy.settings.electricityKwh) ? ['Tarifa de energia zerada na política ativa.'] : []),
+    ];
+  }))];
 
   function changeLabor(kind: LaborKind, estimate: Row) {
     const meta = laborMeta[kind];
@@ -354,7 +365,7 @@ export function PricingEditor({
               <Printer size={19} />
               <h3>Jobs de impressão</h3>
             </div>
-            <button type="button" disabled={!canAddJob} onClick={addJob}>
+            <button type="button" disabled={!canAddJob || jobs.length >= 20} onClick={addJob}>
               <Plus size={16} /> Adicionar job
             </button>
           </div>
@@ -418,9 +429,11 @@ export function PricingEditor({
                     </Field>
                     <Field label="Material">
                       <select
+                        required
                         value={job.materialId}
                         onChange={(e) => changeJob(index, { materialId: e.target.value })}
                       >
+                        <option value="" disabled>Selecione um material compatível</option>
                         {compatible?.map((m) => (
                           <option key={m.id} value={m.id}>
                             {m.name}
@@ -475,9 +488,18 @@ export function PricingEditor({
           )}
           {!canAddJob && !printers.loading && !materials.loading && (
             <p className="fine-print">
-              Cadastre ao menos um material ativo compatível em Fabricação antes de calcular uma
-              impressão.
+              É necessário ter impressora e material ativos da mesma tecnologia.{' '}
+              <Link to="/manufacturing">Conferir catálogo de fabricação</Link>.
             </p>
+          )}
+          {costWarnings.length > 0 && (
+            <div className="callout" role="status">
+              <strong>Confira os custos antes de vender</strong>
+              <ul>{costWarnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>
+              <p>O cálculo usa os valores cadastrados. Custos zerados podem reduzir o preço sugerido.{' '}
+                {user!.role === 'ADMIN' ? <Link to="/manufacturing">Revisar configuração</Link> : 'Solicite a revisão ao administrador.'}
+              </p>
+            </div>
           )}
           <p className="fine-print">
             Quantidade desta peça no orçamento: {quantity}. O servidor calcula automaticamente
@@ -547,7 +569,7 @@ export function PricingEditor({
             {numberField(
               'marginPercent',
               'Margem desejada (%)',
-              'Padrão 20% · premium 25%–30%',
+              `Padrão ${policy.settings.defaultMarginPercent}% · premium ${policy.settings.premiumMinPercent}%–${policy.settings.premiumMaxPercent}%`,
               80,
             )}
             {numberField('feePercent', 'Taxas de venda / pagamento (%)', undefined, 50)}
@@ -555,8 +577,8 @@ export function PricingEditor({
             {numberField(
               'pixDiscountPercent',
               'Desconto Pix (%)',
-              'Até 5%, preservando a margem mínima.',
-              5,
+              `Até ${policy.settings.maximumPixPercent}%, preservando a margem mínima.`,
+              policy.settings.maximumPixPercent,
             )}
           </div>
           <p className="fine-print">
@@ -614,6 +636,7 @@ export function PricingEditor({
           {result ? (
             <>
               <span className="result-label">Preço final por unidade</span>
+              {costWarnings.length > 0 && <p className="fine-print">Estimativa com custos pendentes de conferência. Revise os avisos nos jobs de impressão.</p>}
               <strong className="result-price">{money(result.finalCents)}</strong>
               <span className={`margin-pill ${result.belowMinimum ? 'danger' : ''}`}>
                 {result.marginPercent}% de margem{' '}
@@ -682,7 +705,7 @@ export function PricingEditor({
             </div>
           )}
           <div className="result-note">
-            O cálculo é validado na API com custos do catálogo. O orçamento preservará a versão da
+            O cálculo usa os custos cadastrados. O orçamento preservará a versão da
             política, impressoras, materiais e parâmetros utilizados.
           </div>
         </div>

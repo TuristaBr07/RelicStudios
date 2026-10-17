@@ -191,7 +191,7 @@ export function PaymentForm({
                 setOrderId(e.target.value);
                 const o = orders?.find((o) => o.id === e.target.value);
                 if (o) {
-                  setAmount(Math.max(0, o.pending_cents) / 100);
+                  setAmount((Math.max(0, o.deposit_cents - o.received_cents) || Math.max(0, o.pending_cents)) / 100);
                   setKind(o.received_cents < o.deposit_cents ? 'DEPOSIT' : 'BALANCE');
                 }
               }}
@@ -612,6 +612,11 @@ export function OrderDetail() {
   if (loading) return <Loading />;
   if (!o) return <ErrorBox error={error} />;
   const complete = o.steps.filter((s: Row) => ['COMPLETED', 'CANCELLED'].includes(s.status)).length;
+  const operational = user!.role === 'ADMIN' || user!.role === 'TEAM';
+  const closed = ['DELIVERED', 'CANCELLED'].includes(o.status);
+  const unfinishedJobs = (o.manufacturing_jobs ?? []).filter((j: Row) =>
+    !['COMPLETED', 'FAILED', 'CANCELLED'].includes(j.status) ||
+    (j.status === 'FAILED' && !o.manufacturing_jobs.some((retry: Row) => retry.retry_of === j.id)));
   const estimatedHours = o.steps.reduce(
     (sum: number, s: Row) => sum + Number(s.estimated_hours || 0),
     0,
@@ -634,7 +639,7 @@ export function OrderDetail() {
         title={o.code}
         subtitle={`${o.client_snapshot.name} · ${o.client_snapshot.email || 'Cliente cadastrado'}`}
         action={
-          commercial && (
+          commercial && !closed && (
             <button onClick={() => setPay(true)}>
               <Plus size={17} /> Registrar pagamento
             </button>
@@ -732,6 +737,8 @@ export function OrderDetail() {
           <h2>
             {o.status === 'WAITING_PAYMENT'
               ? 'Tudo começa com a entrada.'
+              : o.status === 'CANCELLED'
+                ? 'Pedido cancelado.'
               : o.status === 'DELIVERED'
                 ? 'Uma criação, uma nova história.'
                 : 'A criação está tomando forma.'}
@@ -741,24 +748,29 @@ export function OrderDetail() {
               ? commercial
                 ? `Aguardando ${money(o.deposit_pending_cents)} de entrada para confirmar o pedido.`
                 : 'Aguardando a confirmação da entrada pelo Comercial.'
+              : o.status === 'CANCELLED'
+                ? 'O histórico foi preservado. Este pedido não aceita novos lançamentos.'
               : o.status === 'DELIVERED'
                 ? `Entrega registrada em ${date(o.delivered_at)}.`
                 : commercial
                   ? o.commercial_snapshot.paymentTerms
                   : 'Acompanhe e registre o avanço das etapas de produção.'}
           </p>
+          {o.status === 'IN_PRODUCTION' && unfinishedJobs.length > 0 && (
+            <p className="fine-print">Conclua os jobs abertos e registre novas tentativas para as falhas antes de marcar o pedido como pronto.</p>
+          )}
         </div>
         <div className="button-row">
-          {o.status === 'CONFIRMED' && (
+          {operational && o.status === 'CONFIRMED' && (
             <Button className="primary" busy={action.busy} onClick={() => change('IN_PRODUCTION')}>
               <Play size={17} /> Iniciar produção
             </Button>
           )}
-          {o.status === 'IN_PRODUCTION' && (
+          {operational && o.status === 'IN_PRODUCTION' && (
             <Button
               className="primary"
               busy={action.busy}
-              disabled={complete !== o.steps.length}
+              disabled={complete !== o.steps.length || unfinishedJobs.length > 0}
               onClick={() => change('READY')}
             >
               <PackageCheck size={17} /> Marcar como pronto
@@ -885,9 +897,9 @@ export function OrderDetail() {
             <h2>
               <Wallet size={19} /> Pagamentos
             </h2>
-            <button className="text-button" onClick={() => setPay(true)}>
+            {!closed && <button className="text-button" onClick={() => setPay(true)}>
               <Plus size={15} /> Registrar
-            </button>
+            </button>}
           </div>
           <PaymentRows payments={o.payments} onChange={reload} />
         </section>
@@ -1043,6 +1055,7 @@ export function Payments() {
   const { data, error, loading, reload } = useData<Row[]>('/payments');
   const orders = useData<Row[]>('/orders');
   const [open, setOpen] = useState(false);
+  const eligibleOrders = orders.data?.filter((o) => !['CANCELLED', 'DELIVERED'].includes(o.status)) ?? [];
   const received =
     data
       ?.filter((p) => p.status === 'RECEIVED')
@@ -1054,7 +1067,7 @@ export function Payments() {
         title="Financeiro"
         subtitle="Entradas, saldos e estornos com rastreabilidade."
         action={
-          <button className="primary" onClick={() => setOpen(true)}>
+          <button className="primary" disabled={orders.loading || !eligibleOrders.length} onClick={() => setOpen(true)}>
             <Plus size={17} /> Registrar pagamento
           </button>
         }
@@ -1082,6 +1095,9 @@ export function Payments() {
         />
       </div>
       <ErrorBox error={error || orders.error} />
+      {!orders.loading && !orders.error && !eligibleOrders.length && (
+        <p className="callout">Não há pedidos abertos para novos pagamentos. <Link to="/orders">Consultar pedidos</Link>.</p>
+      )}
       {loading ? (
         <Loading />
       ) : (
@@ -1115,7 +1131,7 @@ export function Payments() {
       )}
       {open && (
         <PaymentForm
-          orders={orders.data ?? []}
+          orders={eligibleOrders}
           onClose={() => setOpen(false)}
           onSaved={async () => {
             await reload();

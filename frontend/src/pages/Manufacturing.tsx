@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Printer, Package, Plus, Edit3, Archive, RotateCcw } from 'lucide-react';
 import {
   useData,
@@ -22,6 +23,35 @@ import {
 } from '../lib';
 
 const unitLabel = (unit: string) => (unit === 'ML' ? 'mL' : 'g');
+
+function SetupReview({ printers, materials }: { printers: Row[]; materials: Row[] }) {
+  const { data, error, loading } = useData<Row[]>('/policies');
+  const policy = data?.find((p) => p.active);
+  const active = printers.filter((p) => p.active);
+  const pending = active.filter((p) => !Number(p.machine_hourly_cents) || !Number(p.estimated_average_power_watts));
+  const missingMaterial = active.filter((p) => !materials.some((m) => m.active && m.technology_code === p.technology_code));
+  const freeMaterials = materials.filter((m) => m.active && !Number(m.package_price_cents));
+  return (
+    <section className="panel" aria-labelledby="setup-title">
+      <div className="panel-heading"><div><span className="eyebrow">ANTES DO PRIMEIRO ORÇAMENTO</span><h2 id="setup-title">Conferência dos custos</h2></div></div>
+      <ErrorBox error={error} />
+      {loading ? <Loading /> : !error && <>
+        <p className="muted">Use preços de compra e medições reais. Os valores atuais continuam disponíveis para simulações.</p>
+        <ul>
+          {!active.length && <li>Cadastre uma impressora ativa para trabalhos de impressão.</li>}
+          {missingMaterial.map((p) => <li key={p.id}>{p.name}: cadastre um material ativo de tecnologia {p.technology_code}.</li>)}
+          {freeMaterials.map((m) => <li key={m.id}>{m.name}: confira o preço da embalagem, atualmente zerado.</li>)}
+          {pending.map((p) => <li key={p.id}>{p.name}: confira {[
+            ...(!Number(p.machine_hourly_cents) ? ['o custo de máquina por hora (zerado)'] : []),
+            ...(!Number(p.estimated_average_power_watts) ? ['o consumo médio (sem medição)'] : []),
+          ].join(' e ')}.</li>)}
+          {!policy || !Number(policy.settings.electricityKwh) ? <li>Informe a tarifa efetiva de energia em <Link to="/settings?tab=POLICIES">Configurações → Precificação</Link>.</li> : <li>Energia cadastrada: {money(policy.settings.electricityKwh * 100)}/kWh. Confira se corresponde à tarifa atual.</li>}
+        </ul>
+        <p className="fine-print">Edite impressoras e materiais nas listas abaixo. Custos zerados podem ser intencionais, mas precisam ser conferidos. Potência nominal não substitui medição de consumo médio.</p>
+      </>}
+    </section>
+  );
+}
 
 function printerDraft(row?: Row, technologyCode = 'MSLA'): Row {
   return row
@@ -222,6 +252,7 @@ export function Manufacturing() {
             />
           </div>
 
+          {admin && !error && <SetupReview printers={printers.data ?? []} materials={materials.data ?? []} />}
           <section className="panel">
             <div className="panel-heading">
               <div>
@@ -531,7 +562,7 @@ export function Manufacturing() {
                       />
                     </Field>
                   ))}
-                  <Field label="Custo de aquisição (R$)">
+                  <Field label="Custo de aquisição (R$)" hint="Referência do equipamento. Não calcula automaticamente o custo por hora.">
                     <input
                       type="number"
                       min="0"
@@ -542,7 +573,7 @@ export function Manufacturing() {
                       }
                     />
                   </Field>
-                  <Field label="Custo da máquina (R$/h)">
+                  <Field label="Custo da máquina (R$/h)" hint="Informe o custo por hora definido para o equipamento. Energia e reserva de manutenção são calculadas separadamente.">
                     <input
                       type="number"
                       min="0"
@@ -553,7 +584,7 @@ export function Manufacturing() {
                       }
                     />
                   </Field>
-                  <Field label="Reserva de manutenção (%)">
+                  <Field label="Reserva de manutenção (%)" hint="Percentual aplicado sobre o custo de máquina por hora.">
                     <input
                       type="number"
                       min="0"
@@ -682,7 +713,8 @@ export function Manufacturing() {
                 </Field>
                 <p className="fine-print">
                   A unidade é definida pela tecnologia: MSLA usa mL e FDM usa gramas. O custo unitário
-                  é calculado automaticamente pela embalagem cadastrada.
+                  é calculado automaticamente pela embalagem cadastrada. Se a resina foi vendida em kg,
+                  use o volume informado pelo fabricante ou converta com a densidade do produto; não trate kg como litros.
                 </p>
                 <Feedback action={action} />
                 <Button className="primary" busy={action.busy}>

@@ -98,8 +98,7 @@ function Login() {
           <div className="secure-note">
             <ShieldCheck size={16} />
             <span>
-              Acesso privado da equipe. No primeiro uso, crie o administrador pelo procedimento do
-              README.
+              Acesso privado da equipe. Para ativar sua conta ou recuperar o acesso, solicite um link ao administrador.
             </span>
           </div>
         </div>

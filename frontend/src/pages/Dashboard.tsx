@@ -99,18 +99,9 @@ export function Dashboard() {
           <p>
             A mão de obra faz parte do custo. <br />O lucro vem depois.
           </p>
-          <div className="studio-rates">
-            <span>
-              Acabamento<b>R$ 30/h</b>
-            </span>
-            <span>
-              Pintura<b>R$ 40/h</b>
-            </span>
-            <span>
-              Modelagem<b>R$ 50/h</b>
-            </span>
-          </div>
-          <small>Referência da política v1.0. Consulte a política ativa na calculadora.</small>
+          {user!.role !== 'TEAM' ? <ActiveLaborRates /> : (
+            <p>Consulte as etapas do pedido e registre o tempo real de cada atividade.</p>
+          )}
           {user!.role !== 'TEAM' && (
             <Link to="/pricing">
               Calcular uma criação <ArrowRight size={18} />
@@ -177,6 +168,21 @@ export function Dashboard() {
       </div>
     </>
   );
+}
+function ActiveLaborRates() {
+  const { data, error, loading } = useData<Row[]>('/policies');
+  const policy = data?.find((p) => p.active);
+  if (loading) return <Loading />;
+  if (error) return <ErrorBox error={error} />;
+  if (!policy) return <p>Política de preços indisponível. Consulte o administrador.</p>;
+  return <>
+    <div className="studio-rates">
+      <span>Acabamento<b>{money(policy.settings.finishingHourly * 100)}/h</b></span>
+      <span>Pintura<b>{money(policy.settings.paintingHourly * 100)}/h</b></span>
+      <span>Modelagem<b>{money(policy.settings.modelingHourly * 100)}/h</b></span>
+    </div>
+    <small>Política ativa: {policy.name} · v{policy.version}</small>
+  </>;
 }
 function WalletMark() {
   return <span className="circle-mark">R$</span>;

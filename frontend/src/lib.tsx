@@ -27,11 +27,15 @@ export async function api<T = any>(url: string, options: RequestInit = {}): Prom
     ...options,
     credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': token, ...options.headers },
+  }).catch(() => {
+    throw new Error('Não foi possível conectar ao ateliê. Confira sua conexão e tente novamente.');
   });
-  const data = await response.json();
+  if (response.status === 401 && !url.includes('/auth/login'))
+    window.dispatchEvent(new Event('relic:unauthorized'));
+  const data = await response.json().catch(() => {
+    throw new Error('O serviço está temporariamente indisponível. Aguarde um momento e tente novamente.');
+  });
   if (!response.ok) {
-    if (response.status === 401 && !url.includes('/auth/login'))
-      window.dispatchEvent(new Event('relic:unauthorized'));
     throw new Error(
       data.issues?.length
         ? `${data.error} ${data.issues.map((i: Row) => i.message).join(' ')}`
