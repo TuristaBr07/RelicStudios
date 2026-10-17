@@ -158,6 +158,29 @@ Evidências:
 
 Limites: revisão e testes de fluxos essenciais não substituem o piloto com custos reais, backup/restauração ou ensaios de concorrência/carga no PostgreSQL. Cancelamento de job continua sendo exceção administrativa; qualidade e embalagem permanecem obrigatórias para entrega. Não ampliar a etapa para novos módulos.
 
+### 5 — Interface entregue; configuração real pendente (17/10/2026)
+
+Implementação: commit `11cb60d2219953989e511758d20df0f73e8d231b`, integrado na main sem criar branch.
+
+Melhorias entregues:
+
+- Fabricação apresenta uma conferência dos custos para o administrador: materiais compatíveis, preços, máquina/h, consumo médio medido e energia, com acesso direto à política de precificação. Orientações distinguem aquisição, máquina/h, energia e manutenção, e alertam para a unidade de resina em mL.
+- Calculadora seleciona uma impressora ativa com material compatível, inclusive quando a primeira impressora do catálogo não possui material. Mostra custos incompletos, limita a 20 jobs e usa margens/desconto da política selecionada.
+- Visão geral apresenta as taxas de mão de obra da política ativa para ADMIN/COMMERCIAL. TEAM recebe apenas orientação operacional, sem consultar essas taxas.
+- Configurações aceita link direto para a aba de precificação; energia aparece como zero em versões antigas sem o campo. Limites de entrada acompanham as validações do backend.
+- Pedidos mostram ações de produção conforme o perfil, explicam impedimentos para conclusão e retiram recebimentos de pedidos encerrados. O financeiro sugere a entrada pendente ou o saldo correto.
+- Mensagens de acesso, conexão e resposta indisponível foram simplificadas, incluindo retorno HTML de erro do servidor.
+
+Validações:
+
+- `npm run verify` local aprovado: tipos, 21 testes/subtestes e build.
+- [CI 39059747901](https://github.com/TuristaBr07/RelicStudios/actions/runs/39059747901) aprovado: verificação, auditoria de dependências e dois testes E2E. O segundo cobre política ativa, seleção de catálogo MSLA, avisos de custos, acesso à aba de política, valores/limites de formulário e erro de serviço legível.
+- Deploy Render `dep-db9s65bm8hqs73aqud00` confirmado live às 18:49:43 UTC. Healthcheck HTTPS confirmou `status: ok` e `database: connected` após a implantação.
+- Conferência autenticada no ambiente publicado: novo painel de custos visível, link abrindo diretamente Precificação e política existente carregada com energia zero.
+- Nenhuma migração, alteração de custos reais ou criação de registros comerciais no banco remoto. Testes de escrita permaneceram isolados no CI.
+
+A etapa 5 permanece em andamento: existem duas impressoras ativas, nenhum material cadastrado, custo de máquina/energia zerado e consumo médio ainda sem medição. Esses dados não podem ser inventados. Valores positivos também precisam de conferência real; os avisos não são certificação de prontidão.
+
 ## Roadmap de entrega
 
 | Etapa | Estado | Critério de saída |
@@ -166,7 +189,7 @@ Limites: revisão e testes de fluxos essenciais não substituem o piloto com cus
 | 2. Estabilizar base | Concluída | CI e fluxo E2E aprovados. |
 | 3. Homologar Render | Concluída | Implantação, login, migrations, PostgreSQL e persistência verificados no ambiente remoto. |
 | 4. Revisar regras e fluxos | Concluída | Fluxos essenciais e exceções relevantes consistentes, incluindo precificação, produção, pagamentos e permissões. |
-| 5. Finalizar experiência e configuração | Pendente | Interface revisada e parâmetros operacionais configurados com valores reais, sem inventar custos. |
+| 5. Finalizar experiência e configuração | Em andamento: interface entregue, valores reais pendentes | Interface revisada e parâmetros operacionais configurados com valores reais, sem inventar custos. |
 | 6. Preparar operação definitiva | Pendente | Ambiente definitivo definido, acessos conferidos, backup e restauração testados e manutenção documentada. |
 | 7. Piloto e entrega | Pendente | Caso representativo concluído, pendências bloqueadoras resolvidas, guia curto e versão de entrega identificada. |
 
@@ -174,9 +197,9 @@ Escopo: concluir os módulos existentes. Funcionalidades novas entram apenas qua
 
 ## Próximo ponto de retomada
 
-1. Iniciar a etapa 5: revisar a experiência dos módulos existentes, mensagens e estados vazios, e preparar a configuração operacional.
-2. Antes de editar, conferir branch, commit, mudanças locais, CI e estado remoto. Continuar usando banco isolado para testes de escrita.
-3. Configurar materiais, energia, máquina/h e consumo médio somente com dados reais fornecidos ou medidos por Gabriel; não inventar custos. Essa participação não bloqueia os ajustes técnicos de interface.
+1. Concluir a configuração da etapa 5 com Gabriel. Começar por um material real: nome/tipo, quantidade e unidade da embalagem e preço pago. Para resina vendida por massa, obter volume ou densidade do fabricante antes de converter para mL.
+2. Em seguida, coletar tarifa efetiva de energia, parâmetros de máquina/h, consumo médio medido e confirmação das condições comerciais. Registrar valores comerciais na aplicação, sem publicá-los neste repositório.
+3. Antes de editar, conferir branch, commit, mudanças locais, CI e estado remoto. Continuar usando banco isolado para testes de escrita e preservar snapshots existentes.
 4. Na etapa 6, resolver a expiração do PostgreSQL free em 08/11/2026, testar backup/restauração e definir operação definitiva.
 5. Limpeza da branch remota já integrada `fix/restore-logo-validation` permanece pendente por ausência de mecanismo de exclusão na conexão GitHub; nenhuma branch foi adicionada nesta etapa.
 
