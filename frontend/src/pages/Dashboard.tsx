@@ -199,6 +199,8 @@ const eventNames: Record<string, string> = {
   PAYMENT_RECEIVED: 'Recebimento confirmado',
   PAYMENT_REFUND: 'Estorno registrado',
   PRODUCTION_UPDATED: 'Etapa de produção atualizada',
+  MANUFACTURING_JOB_UPDATED: 'Job de fabricação atualizado',
+  MANUFACTURING_JOB_RETRIED: 'Nova tentativa de fabricação',
   POLICY_VERSION_CREATED: 'Nova política de preços',
   USER_CREATED: 'Usuário criado',
   USER_INVITED: 'Usuário convidado',

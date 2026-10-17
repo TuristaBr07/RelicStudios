@@ -389,7 +389,7 @@ function JobEditor({
   const statuses = [job.status, ...(transitions[job.status] ?? [])].filter(
     (value) => value !== 'CANCELLED' || user!.role === 'ADMIN',
   );
-  const closing = ['COMPLETED', 'FAILED'].includes(status);
+  const closing = ['COMPLETED', 'FAILED'].includes(status) || (status === 'CANCELLED' && !!job.started_at);
   return (
     <Modal title={`Job ${job.position} · ${job.printer_name}`} onClose={onClose}>
       <Form
@@ -808,8 +808,19 @@ export function OrderDetail() {
                           </small>
                         )}
                         {printJob.notes && <small className="preserve">{printJob.notes}</small>}
+                        {printJob.retry_of && <small>Nova tentativa do job {(o.manufacturing_jobs ?? []).find((j: Row) => j.id === printJob.retry_of)?.position}</small>}
                       </div>
                       <span className="count">{jobStatusLabels[printJob.status] ?? printJob.status}</span>
+                      {(user!.role === 'ADMIN' || user!.role === 'TEAM') &&
+                        o.status === 'IN_PRODUCTION' && printJob.status === 'FAILED' &&
+                        !(o.manufacturing_jobs ?? []).some((j: Row) => j.retry_of === printJob.id) && (
+                          <button className="small" disabled={action.busy} onClick={() => void action.run(async () => {
+                            await api(`/manufacturing/jobs/${printJob.id}/retry`, send('POST', {}));
+                            await reload();
+                          }, 'Nova tentativa criada. O custo da falha foi preservado.')}>
+                            Repetir job
+                          </button>
+                        )}
                       {(user!.role === 'ADMIN' || user!.role === 'TEAM') &&
                         !['COMPLETED', 'FAILED', 'CANCELLED'].includes(printJob.status) && (
                           <button className="small" onClick={() => setJob(printJob)}>Atualizar job</button>

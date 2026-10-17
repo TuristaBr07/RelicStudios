@@ -324,6 +324,40 @@ export function manufacturingRoutes(app: FastifyInstance, db: Sql) {
     );
   });
 
+  app.post('/api/manufacturing/jobs/:id/retry', async (req, reply) => {
+    roles(req, 'ADMIN', 'TEAM');
+    const id = getId(req.params);
+    return db.transaction(async (tx) => {
+      const [base] = await tx.query(
+        'SELECT i.order_id FROM relic.manufacturing_jobs j JOIN relic.order_items i ON i.id=j.order_item_id WHERE j.id=$1',
+        [id],
+      );
+      ensure(base, 'Job de fabricação não encontrado.', 404);
+      const [order] = await tx.query('SELECT status FROM relic.orders WHERE id=$1 FOR UPDATE', [base.order_id]);
+      const [job] = await tx.query('SELECT * FROM relic.manufacturing_jobs WHERE id=$1 FOR UPDATE', [id]);
+      ensure(job?.status === 'FAILED', 'Somente jobs com falha podem gerar uma nova tentativa.');
+      const [existing] = await tx.query(
+        "SELECT id FROM relic.manufacturing_jobs WHERE order_item_id=$1 AND snapshot->>'retryOf'=$2",
+        [job.order_item_id, id],
+      );
+      if (existing) return { id: existing.id, retryOf: id };
+      ensure(order?.status === 'IN_PRODUCTION', 'O pedido precisa estar em produção para repetir um job.');
+      const [created] = await tx.query(
+        `INSERT INTO relic.manufacturing_jobs(
+          order_item_id,printer_id,material_id,technology_code,position,output_quantity,
+          estimated_material_amount,estimated_minutes,snapshot,created_by
+        ) SELECT $1,$2,$3,$4,coalesce(max(position),0)+1,$5,$6,$7,$8,$9
+            FROM relic.manufacturing_jobs WHERE order_item_id=$1 RETURNING id`,
+        [job.order_item_id, job.printer_id, job.material_id, job.technology_code,
+          job.output_quantity, job.estimated_material_amount, job.estimated_minutes,
+          JSON.stringify({ ...job.snapshot, retryOf: id }), req.user!.id],
+      );
+      await audit(tx, req.user!.id, 'MANUFACTURING_JOB_RETRIED', 'manufacturing_jobs', created!.id, { retryOf: id });
+      reply.code(201);
+      return { id: created!.id, retryOf: id };
+    });
+  });
+
   app.patch('/api/manufacturing/jobs/:id', async (req) => {
     roles(req, 'ADMIN', 'TEAM');
     const id = getId(req.params);
@@ -338,24 +372,23 @@ export function manufacturingRoutes(app: FastifyInstance, db: Sql) {
       .strict()
       .parse(req.body);
     return db.transaction(async (tx) => {
-      const [job] = await tx.query(
-        'SELECT * FROM relic.manufacturing_jobs WHERE id=$1 FOR UPDATE',
+      const [base] = await tx.query(
+        'SELECT i.order_id FROM relic.manufacturing_jobs j JOIN relic.order_items i ON i.id=j.order_item_id WHERE j.id=$1',
         [id],
       );
+      ensure(base, 'Job de fabricação não encontrado.', 404);
+      // All operational mutations lock the order before its children.
+      const [order] = await tx.query('SELECT status FROM relic.orders WHERE id=$1 FOR UPDATE', [
+        base.order_id,
+      ]);
+      ensure(order && !['DELIVERED', 'CANCELLED'].includes(order.status), 'Pedido encerrado.');
+      const [job] = await tx.query('SELECT * FROM relic.manufacturing_jobs WHERE id=$1 FOR UPDATE', [id]);
       ensure(job, 'Job de fabricação não encontrado.', 404);
       ensure(job.version === b.version, 'O job mudou. Atualize a página antes de salvar.', 409);
       ensure(
         !['COMPLETED', 'FAILED', 'CANCELLED'].includes(job.status),
         'Job encerrado não pode ser alterado.',
       );
-      const [orderItem] = await tx.query('SELECT order_id FROM relic.order_items WHERE id=$1', [
-        job.order_item_id,
-      ]);
-      ensure(orderItem, 'Item do pedido não encontrado.', 404);
-      const [order] = await tx.query('SELECT status FROM relic.orders WHERE id=$1 FOR UPDATE', [
-        orderItem.order_id,
-      ]);
-      ensure(order && !['DELIVERED', 'CANCELLED'].includes(order.status), 'Pedido encerrado.');
       if (b.status !== job.status) {
         const transitions: Record<string, string[]> = {
           PLANNED: ['READY', 'CANCELLED'],
@@ -367,7 +400,7 @@ export function manufacturingRoutes(app: FastifyInstance, db: Sql) {
       if (b.status === 'CANCELLED') roles(req, 'ADMIN');
       if (['RUNNING', 'COMPLETED', 'FAILED'].includes(b.status))
         ensure(order.status === 'IN_PRODUCTION', 'Inicie a produção do pedido antes do job.');
-      if (['COMPLETED', 'FAILED'].includes(b.status)) {
+      if (['COMPLETED', 'FAILED'].includes(b.status) || (b.status === 'CANCELLED' && job.started_at)) {
         ensure(
           b.actualMaterialAmount !== null && b.actualMinutes !== null,
           'Informe material e tempo reais antes de encerrar o job.',
@@ -377,7 +410,7 @@ export function manufacturingRoutes(app: FastifyInstance, db: Sql) {
         `UPDATE relic.manufacturing_jobs SET
            status=$1,actual_material_amount=$2,actual_minutes=$3,notes=$4,
            started_at=CASE WHEN $1 IN ('RUNNING','COMPLETED','FAILED') THEN coalesce(started_at,now()) ELSE started_at END,
-           completed_at=CASE WHEN $1 IN ('COMPLETED','FAILED','CANCELLED') THEN now() ELSE completed_at END
+           completed_at=CASE WHEN $1 IN ('COMPLETED','FAILED') OR ($1='CANCELLED' AND started_at IS NOT NULL) THEN now() ELSE completed_at END
          WHERE id=$5 RETURNING *`,
         [b.status, b.actualMaterialAmount, b.actualMinutes, b.notes, id],
       );

@@ -91,15 +91,25 @@ function buildCostReport(order: Row, items: Row[], steps: Row[], jobs: Row[]) {
   const actualCostCents = reports.reduce((sum, item) => sum + item.actualCostCents, 0);
   const estimatedCostCents = Number(order.cost_cents ?? 0);
   const subtotalCents = Number(order.commercial_snapshot?.subtotalCents ?? order.total_cents ?? 0);
+  const quotedCharge = (batchKey: string, unitKey: string) =>
+    items.reduce((sum, item) => {
+      const calculation = item.snapshot?.calculation ?? {};
+      return sum + Number(calculation[batchKey] ??
+        Number(calculation[unitKey] ?? 0) * Number(item.snapshot?.quantity ?? 1));
+    }, 0);
+  const quotedFeeCents = quotedCharge('batchFeeCents', 'feeCents');
+  const quotedTaxCents = quotedCharge('batchTaxCents', 'taxCents');
   return {
     isFinal: order.status === 'DELIVERED',
     estimatedCostCents,
     actualCostCents,
     varianceCents: actualCostCents - estimatedCostCents,
-    actualProfitCents: subtotalCents - actualCostCents,
+    quotedFeeCents,
+    quotedTaxCents,
+    actualProfitCents: subtotalCents - actualCostCents - quotedFeeCents - quotedTaxCents,
     subtotalCents,
     items: reports,
-    note: 'Material e tempo reais vêm dos jobs; horas reais vêm da produção. Consumíveis, embalagem e extras permanecem pelos valores aprovados até existir apontamento específico. A reserva de impressão não é tratada como gasto realizado.',
+    note: 'Material e tempo reais vêm dos jobs; horas reais vêm da produção. Consumíveis, embalagem, extras, taxas e impostos permanecem pelos valores aprovados até existir apontamento específico. O resultado desconta taxas e impostos e não inclui frete. A reserva de impressão não é tratada como gasto realizado.',
   };
 }
 
@@ -124,7 +134,10 @@ export async function orderDetail(db: Sql, id: string, financial = true) {
       ORDER BY (i.snapshot->>'position')::integer,j.position`,
     [id],
   );
-  const operationalJobs = jobs.map(({ snapshot: _snapshot, created_by: _createdBy, ...job }) => job);
+  const operationalJobs = jobs.map(({ snapshot, created_by: _createdBy, ...job }) => ({
+    ...job,
+    retry_of: snapshot?.retryOf ?? null,
+  }));
   if (!financial)
     return {
       ...teamOrder(o!),
@@ -220,6 +233,21 @@ export function orderRoutes(app: FastifyInstance, db: Sql) {
           [id],
         );
         ensure(s!.count === 0, 'Conclua todas as etapas antes de marcar o pedido como pronto.');
+        const [jobs] = await tx.query(
+          "SELECT count(*)::integer AS count FROM relic.manufacturing_jobs j JOIN relic.order_items i ON i.id=j.order_item_id WHERE i.order_id=$1 AND j.status NOT IN ('COMPLETED','FAILED','CANCELLED')",
+          [id],
+        );
+        ensure(jobs!.count === 0, 'Encerre os jobs de fabricação antes de marcar o pedido como pronto.');
+        const [failed] = await tx.query(
+          `SELECT count(*)::integer AS count FROM relic.manufacturing_jobs j
+             JOIN relic.order_items i ON i.id=j.order_item_id
+            WHERE i.order_id=$1 AND j.status='FAILED' AND NOT EXISTS (
+              SELECT 1 FROM relic.manufacturing_jobs retry
+               WHERE retry.order_item_id=j.order_item_id AND retry.snapshot->>'retryOf'=j.id::text
+            )`,
+          [id],
+        );
+        ensure(failed!.count === 0, 'Registre uma nova tentativa para os jobs com falha antes de marcar o pedido como pronto.');
       }
       if (b.status === 'DELIVERED')
         ensure(paid === o.total_cents, 'Receba o saldo integral antes da entrega.');
@@ -229,6 +257,15 @@ export function orderRoutes(app: FastifyInstance, db: Sql) {
           'Informe o motivo do cancelamento (ao menos 8 caracteres).',
         );
         ensure(paid === 0, 'Estorne os valores recebidos antes de cancelar.');
+        const [running] = await tx.query(
+          "SELECT count(*)::integer AS count FROM relic.manufacturing_jobs j JOIN relic.order_items i ON i.id=j.order_item_id WHERE i.order_id=$1 AND j.status='RUNNING'",
+          [id],
+        );
+        ensure(running!.count === 0, 'Encerre os jobs em execução e registre material e tempo reais antes de cancelar o pedido.');
+        await tx.query(
+          "UPDATE relic.manufacturing_jobs SET status='CANCELLED' WHERE order_item_id IN (SELECT id FROM relic.order_items WHERE order_id=$1) AND status IN ('PLANNED','READY')",
+          [id],
+        );
         await tx.query(
           "UPDATE relic.production_steps SET status='CANCELLED' WHERE order_id=$1 AND status<>'COMPLETED'",
           [id],
@@ -455,10 +492,10 @@ export function orderRoutes(app: FastifyInstance, db: Sql) {
       if (b.position !== undefined && b.position !== s.position) {
         roles(req, 'ADMIN');
         const [started] = await tx.query(
-          'SELECT count(*)::integer AS count FROM relic.production_steps WHERE order_item_id=$1 AND started_at IS NOT NULL',
+          "SELECT count(*)::integer AS count FROM relic.production_steps WHERE order_item_id=$1 AND (started_at IS NOT NULL OR status IN ('COMPLETED','CANCELLED'))",
           [s.order_item_id],
         );
-        ensure(started!.count === 0, 'A ordem das etapas só pode mudar antes de iniciar.');
+        ensure(started!.count === 0, 'A ordem das etapas só pode mudar antes de iniciar ou encerrar uma etapa.');
         ensure(b.status === s.status, 'Altere a ordem separadamente do status.');
         const [other] = await tx.query(
           'SELECT id,position FROM relic.production_steps WHERE order_item_id=$1 AND position=$2',
@@ -535,7 +572,10 @@ export function orderRoutes(app: FastifyInstance, db: Sql) {
       receivedCents: financial ? Number(pay!.received) : null,
       pendingCents: financial ? Math.max(0, Number(orders!.revenue) - Number(pay!.received)) : null,
       actualHours: Number(hours!.actual),
-      due,
+      due: financial ? due : due.map((row) => ({
+        ...row,
+        client_snapshot: { name: row.client_snapshot?.name ?? '' },
+      })),
       recent,
     };
   });

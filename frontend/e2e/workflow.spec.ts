@@ -126,6 +126,24 @@ test('fluxo completo do estúdio pela interface', async ({ page }) => {
   await expect(page.getByText('Em produção', { exact: true })).toBeVisible();
 
   let detail = await api<any>(page, 'GET', `/orders/${orderId}`);
+  const approvedTotal = detail.total_cents;
+  let failedJob = detail.manufacturing_jobs[0];
+  for (const status of ['READY', 'RUNNING', 'FAILED']) {
+    failedJob = await api(page, 'PATCH', `/manufacturing/jobs/${failedJob.id}`, {
+      version: failedJob.version,
+      status,
+      actualMaterialAmount: status === 'FAILED' ? 10 : null,
+      actualMinutes: status === 'FAILED' ? 15 : null,
+      notes: 'Falha de impressão no teste isolado',
+    });
+  }
+  await page.reload();
+  await page.getByRole('button', { name: 'Repetir job', exact: true }).click();
+  await expect(page.getByText('Nova tentativa do job 1', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Repetir job', exact: true })).toHaveCount(0);
+  detail = await api<any>(page, 'GET', `/orders/${orderId}`);
+  expect(detail.manufacturing_jobs).toHaveLength(2);
+  expect(detail.total_cents).toBe(approvedTotal);
   for (const base of detail.manufacturing_jobs as any[]) {
     let job = base;
     if (job.status === 'PLANNED') {

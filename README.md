@@ -135,6 +135,16 @@ Horas reais das etapas são convertidas em custo pelo snapshot da política do p
 
 O pedido apresenta custo previsto × realizado, variação e resultado sobre as peças. Consumíveis, embalagem e extras permanecem pelos valores aprovados até existir apontamento específico. A reserva de impressão continua sendo proteção comercial do orçamento e não é registrada como gasto realizado. Nenhum desvio operacional altera retroativamente o preço vendido.
 
+O resultado sobre as peças desconta também taxas e impostos do snapshot aprovado; esses valores continuam estimados até existir conciliação específica. O frete não compõe esse resultado.
+
+## Encerramento e novas tentativas
+
+Um pedido só fica pronto depois de encerrar as etapas e os jobs de fabricação. Um job com falha precisa de uma nova tentativa registrada no pedido. A ação **Repetir job**, disponível à administração e à equipe durante a produção, cria um novo job com os parâmetros aprovados, preserva a falha e seu custo e impede duplicação por cliques repetidos. Se a nova tentativa também falhar, ela pode gerar outra tentativa. O preço vendido e a baseline original permanecem intactos.
+
+Ao cancelar um pedido, é necessário estornar os recebimentos e encerrar jobs em execução com material e tempo reais. Jobs ainda planejados ou prontos são cancelados junto com o pedido; registros já encerrados permanecem intactos. Cancelar um job que nunca iniciou não registra um início fictício. Cancelamento administrativo continua sendo uma exceção operacional; qualidade e embalagem permanecem etapas obrigatórias para entrega.
+
+A ordem das etapas só pode ser alterada antes de qualquer início ou encerramento, evitando reabrir etapas canceladas. O painel da equipe expõe somente o nome do cliente, como as demais consultas operacionais.
+
 ## Identidade visual
 
 A aplicação usa a identidade oficial da Relic Studios no login, nos fluxos públicos de acesso, na navegação interna e nos orçamentos comerciais. O símbolo do baú é o ativo principal da marca e a interface adota a paleta grafite, âmbar e creme utilizada nos materiais comerciais.
